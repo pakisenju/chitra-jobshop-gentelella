@@ -4,79 +4,86 @@ namespace App\Livewire;
 
 use Livewire\Component;
 use App\Models\Tool;
+use Livewire\WithPagination;
 
 class ManageTools extends Component
 {
-    public $tools = [];
-    public $name = '';
-    public $quantity = 1;
-    public $editMode = false;
-    public $editId = null;
+    use WithPagination;
+
+    public $name;
+    public $quantity;
+    public $toolId;
+    public $isOpen = false;
 
     protected $rules = [
-        'name' => 'required|string|unique:tools,name',
+        'name' => 'required|string|max:255|unique:tools,name',
         'quantity' => 'required|integer|min:1'
     ];
 
-    public function mount()
+    public function render()
     {
-        $this->loadTools();
+        $tools = Tool::paginate(10);
+
+        return view('livewire.manage-tools', [
+            'tools' => $tools,
+        ]);
     }
 
-    public function loadTools()
+    public function create()
     {
-        $this->tools = Tool::all();
+        $this->resetInputFields();
+        $this->openModal();
     }
 
-    public function saveTool()
+    public function openModal()
     {
-        $this->validate();
-
-        if ($this->editMode) {
-            $tool = Tool::find($this->editId);
-            $tool->update([
-                'name' => $this->name,
-                'quantity' => $this->quantity
-            ]);
-            session()->flash('message', 'Tool berhasil diperbarui.');
-        } else {
-            Tool::create([
-                'name' => $this->name,
-                'quantity' => $this->quantity
-            ]);
-            session()->flash('message', 'Tool berhasil ditambahkan.');
-        }
-
-        $this->resetForm();
-        $this->loadTools();
+        $this->isOpen = true;
     }
 
-    public function editTool($id)
+    public function closeModal()
     {
-        $tool = Tool::find($id);
-        $this->name = $tool->name;
-        $this->quantity = $tool->quantity;
-        $this->editMode = true;
-        $this->editId = $id;
+        $this->isOpen = false;
     }
 
-    public function deleteTool($id)
-    {
-        Tool::find($id)->delete();
-        session()->flash('message', 'Tool berhasil dihapus.');
-        $this->loadTools();
-    }
-
-    public function resetForm()
+    public function resetInputFields()
     {
         $this->name = '';
         $this->quantity = 1;
-        $this->editMode = false;
-        $this->editId = null;
+        $this->toolId = '';
     }
 
-    public function render()
+    public function store()
     {
-        return view('livewire.manage-tools');
+        $this->validate();
+
+        Tool::updateOrCreate(['id' => $this->toolId], [
+            'name' => $this->name,
+            'quantity' => $this->quantity
+        ]);
+
+        session()->flash(
+            'message',
+            $this->toolId ? 'Tool berhasil diupdate.' : 'Tool berhasil dibuat.'
+        );
+
+        $this->closeModal();
+        $this->resetInputFields();
+    }
+
+    public function edit($id)
+    {
+        $tool = Tool::findOrFail($id);
+
+        $this->toolId = $id;
+        $this->name = $tool->name;
+        $this->quantity = $tool->quantity;
+
+        $this->openModal();
+    }
+
+    public function delete($id)
+    {
+        Tool::find($id)->delete();
+        session()->flash('message', 'Tool berhasil dihapus.');
     }
 }

@@ -73,7 +73,7 @@ class Dashboard extends Component
 
                 // Format event untuk kalender
                 $this->events[] = [
-                    'title' => $taskDetail->tireJobOrder->SN_tire . ' - ' . $task->name . ' (' . ($task->tool_id ? Tool::find($task->tool_id)->name : 'none') . ')',
+                    'title' => $taskDetail->tireJobOrder->sn_tire . ' - ' . $task->name . ' (' . ($task->tool_id ? Tool::find($task->tool_id)->name : 'none') . ')',
                     'start' => $startTime->toDateTimeString(),
                     'end' => $endTime->toDateTimeString(),
                 ];

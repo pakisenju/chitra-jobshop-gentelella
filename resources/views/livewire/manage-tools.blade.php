@@ -1,74 +1,96 @@
+<?php
+    $isOpen = $isOpen ?? false;
+?>
 <div class="container mx-auto px-4 py-8">
-    <h1 class="text-2xl font-bold mb-6">Manajemen Tools</h1>
-
-    <!-- Form Input -->
-    <div class="p-6 rounded-lg shadow-md mb-8">
-        <h2 class="text-xl font-semibold mb-4">{{ $editMode ? 'Edit Tool' : 'Tambah Tool' }}</h2>
-
-        <form wire:submit.prevent="saveTool">
-            <div class="mb-4">
-                <label for="name" class="block mb-2">Nama Tool</label>
-                <input type="text" id="name" wire:model="name" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300">
-                @error('name') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-            </div>
-
-            <div class="mb-4">
-                <label for="quantity" class="block mb-2">Jumlah</label>
-                <input type="number" id="quantity" wire:model="quantity" class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring focus:border-blue-300">
-                @error('quantity') <span class="text-red-500 text-sm">{{ $message }}</span> @enderror
-            </div>
-
-            <div class="flex space-x-4">
-                <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-300">
-                    {{ $editMode ? 'Update' : 'Simpan' }}
-                </button>
-                <button type="button" wire:click="resetForm" class="px-4 py-2 bg-gray-500 text-white rounded-lg hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-300">
-                    Batal
-                </button>
-            </div>
-        </form>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Manajemen Tools</h1>
+        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Tambah Tool
+        </button>
     </div>
 
-    <!-- Tabel Data -->
-    <div class="p-6 rounded-lg shadow-md">
-        <h2 class="text-xl font-semibold mb-4">Daftar Tools</h2>
+    @if (session()->has('message'))
+        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <span class="block sm:inline">{{ session('message') }}</span>
+        </div>
+    @endif
 
-        @if(session()->has('message'))
-            <div class="mb-4 p-4 bg-green-100 text-green-700 rounded-lg">
-                {{ session('message') }}
+    <!-- Modal Form -->
+    @if ($isOpen)
+        <div class="fixed inset-0 bg-[#FDFDFC] dark:bg-[#0a0a0a] flex items-center justify-center" wire:ignore.self>
+            <div class="rounded-lg p-6 w-full max-w-md">
+                <h2 class="text-xl font-semibold mb-4">{{ $toolId ? 'Edit' : 'Tambah' }} Tool</h2>
+
+                <form wire:submit.prevent="store">
+                    <div class="mb-4">
+                        <label class="block text-sm font-bold mb-2" for="name">
+                            Nama Tool <span class="text-red-500">*</span>
+                        </label>
+                        <input wire:model="name" type="text"
+                            class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                            id="name">
+                        @error('name')
+                            <span class="text-red-500 text-xs">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-bold mb-2" for="quantity">
+                            Jumlah <span class="text-red-500">*</span>
+                        </label>
+                        <input wire:model="quantity" type="number" min="1"
+                            class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                            id="quantity">
+                        @error('quantity')
+                            <span class="text-red-500 text-xs">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" wire:click="closeModal"
+                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Batal
+                        </button>
+                        <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Simpan
+                        </button>
+                    </div>
+                </form>
             </div>
-        @endif
+        </div>
+    @endif
 
-        <div class="overflow-x-auto">
-            <table class="min-w-full">
-                <thead>
-                    <tr>
-                        <th class="py-2 px-4 border">ID</th>
-                        <th class="py-2 px-4 border">Nama</th>
-                        <th class="py-2 px-4 border">Jumlah</th>
-                        <th class="py-2 px-4 border">Aksi</th>
+    <!-- Tabel Tools -->
+    <div class="shadow-md rounded my-6">
+        <table class="min-w-full border-collapse">
+            <thead>
+                <tr>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">ID</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Nama Tool</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Jumlah</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($tools as $tool)
+                    <tr class="border-b ">
+                        <td class="py-4 px-6">{{ $tool->id }}</td>
+                        <td class="py-4 px-6">{{ $tool->name }}</td>
+                        <td class="py-4 px-6">{{ $tool->quantity }}</td>
+                        <td class="py-4 px-6">
+                            <button wire:click="edit({{ $tool->id }})"
+                                class="text-blue-500 hover:text-blue-700 mr-2">Edit</button>
+                            <button wire:click="delete({{ $tool->id }})"
+                                onclick="return confirm('Apakah Anda yakin ingin menghapus tool ini?')"
+                                class="text-red-500 hover:text-red-700">Hapus</button>
+                        </td>
                     </tr>
-                </thead>
-                <tbody>
-                    @foreach($tools as $tool)
-                        <tr>
-                            <td class="py-2 px-4 border">{{ $tool->id }}</td>
-                            <td class="py-2 px-4 border">{{ $tool->name }}</td>
-                            <td class="py-2 px-4 border">{{ $tool->quantity }}</td>
-                            <td class="py-2 px-4 border">
-                                <div class="flex space-x-2">
-                                    <button wire:click="editTool({{ $tool->id }})" class="px-3 py-1 bg-yellow-500 text-white rounded hover:bg-yellow-600 focus:outline-none focus:ring-2 focus:ring-yellow-300">
-                                        Edit
-                                    </button>
-                                    <button wire:click="deleteTool({{ $tool->id }})" class="px-3 py-1 bg-red-500 text-white rounded hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-300" onclick="return confirm('Apakah Anda yakin ingin menghapus tool ini?')">
-                                        Hapus
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
-                    @endforeach
-                </tbody>
-            </table>
+                @endforeach
+            </tbody>
+        </table>
+        <div class="px-6 py-3">
+            {{ $tools->links() }}
         </div>
     </div>
 </div>

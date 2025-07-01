@@ -12,10 +12,10 @@ class ManageCustomers extends Component
 
     public $name;
     public $customerId;
-    public $isEdit = false;
+    public $isOpen = false;
 
     protected $rules = [
-        'name' => 'required|unique:customers,name'
+        'name' => 'required|string|max:255|unique:customers,name',
     ];
 
     public function render()
@@ -24,40 +24,58 @@ class ManageCustomers extends Component
         return view('livewire.manage-customers', ['customers' => $customers]);
     }
 
-    public function save()
+    public function create()
+    {
+        $this->resetInputFields();
+        $this->openModal();
+    }
+
+    public function openModal()
+    {
+        $this->isOpen = true;
+    }
+
+    public function closeModal()
+    {
+        $this->isOpen = false;
+    }
+
+    public function resetInputFields()
+    {
+        $this->name = '';
+        $this->customerId = '';
+    }
+
+    public function store()
     {
         $this->validate();
 
-        if ($this->isEdit) {
-            $customer = Customer::find($this->customerId);
-            $customer->update(['name' => $this->name]);
-            session()->flash('message', 'Customer berhasil diupdate.');
-        } else {
-            Customer::create(['name' => $this->name]);
-            session()->flash('message', 'Customer berhasil ditambahkan.');
-        }
+        Customer::updateOrCreate(['id' => $this->customerId], [
+            'name' => $this->name,
+        ]);
 
-        $this->resetInput();
+        session()->flash(
+            'message',
+            $this->customerId ? 'Customer berhasil diupdate.' : 'Customer berhasil ditambahkan.'
+        );
+
+        $this->closeModal();
+        $this->resetInputFields();
     }
 
     public function edit($id)
     {
-        $customer = Customer::find($id);
+        $customer = Customer::findOrFail($id);
+
         $this->customerId = $id;
         $this->name = $customer->name;
-        $this->isEdit = true;
+
+        $this->openModal();
     }
 
     public function delete($id)
     {
         Customer::find($id)->delete();
         session()->flash('message', 'Customer berhasil dihapus.');
-    }
-
-    private function resetInput()
-    {
-        $this->name = '';
-        $this->customerId = '';
-        $this->isEdit = false;
     }
 }

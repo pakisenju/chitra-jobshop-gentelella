@@ -22,5 +22,6 @@ Route::middleware(['auth'])->group(function () {
 Volt::route('tools', 'manage-tools')->name('tools');
 Volt::route('tasks', 'manage-tasks')->name('tasks');
 Volt::route('customers', 'manage-customers')->name('customers');
+Volt::route('tire-job-orders', 'manage-tire-job-orders')->name('tire-job-orders');
 
 require __DIR__ . '/auth.php';
