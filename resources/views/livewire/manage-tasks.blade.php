@@ -1,0 +1,112 @@
+<div class="container mx-auto px-4 py-8">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold">Manage Tasks</h1>
+        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+            Tambah Task
+        </button>
+    </div>
+
+    @if (session()->has('message'))
+        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
+            <span class="block sm:inline">{{ session('message') }}</span>
+        </div>
+    @endif
+
+    <!-- Modal Form -->
+    @if ($isOpen)
+        <div class="fixed inset-0 bg-[#FDFDFC] dark:bg-[#0a0a0a] flex items-center justify-center">
+            <div class=" rounded-lg p-6 w-full max-w-md">
+                <h2 class="text-xl font-semibold mb-4">{{ $taskId ? 'Edit' : 'Tambah' }} Task</h2>
+
+                <form wire:submit.prevent="store">
+                    <div class="mb-4">
+                        <label class="block text-sm font-bold mb-2" for="name">
+                            Nama Task <span class="text-red-500">*</span>
+                        </label>
+                        <input wire:model="name" type="text"
+                            class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                            id="name">
+                        @error('name')
+                            <span class="text-red-500 text-xs">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-bold mb-2" for="duration">
+                            Durasi (menit) <span class="text-red-500">*</span>
+                        </label>
+                        <input wire:model="duration" type="number" min="1"
+                            class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                            id="duration">
+                        @error('duration')
+                            <span class="text-red-500 text-xs">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <div class="mb-4">
+                        <label class="block text-sm font-bold mb-2" for="tool_id">
+                            Tool
+                        </label>
+                        <select wire:model="tool_id"
+                            class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                            id="tool_id">
+                            <option value="">None</option>
+                            @foreach ($tools as $tool)
+                                <option value="{{ $tool->id }}">{{ $tool->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('tool_id')
+                            <span class="text-red-500 text-xs">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <div class="flex justify-end space-x-2">
+                        <button type="button" wire:click="closeModal"
+                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            Batal
+                        </button>
+                        <button type="submit"
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            Simpan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+
+    <!-- Tabel Tasks -->
+    <div class=" shadow-md rounded my-6">
+        <table class="min-w-full border-collapse">
+            <thead>
+                <tr>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">ID</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Nama Task</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Durasi</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Tool</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Aksi</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach ($tasks as $task)
+                    <tr class="border-b ">
+                        <td class="py-4 px-6">{{ $task->id }}</td>
+                        <td class="py-4 px-6">{{ $task->name }}</td>
+                        <td class="py-4 px-6">{{ $task->duration }} menit</td>
+                        <td class="py-4 px-6">{{ $task->tool ? $task->tool->name : 'None' }}</td>
+                        <td class="py-4 px-6">
+                            <button wire:click="edit({{ $task->id }})"
+                                class="text-blue-500 hover:text-blue-700 mr-2">Edit</button>
+                            <button wire:click="delete({{ $task->id }})"
+                                onclick="return confirm('Apakah Anda yakin ingin menghapus task ini?')"
+                                class="text-red-500 hover:text-red-700">Hapus</button>
+                        </td>
+                    </tr>
+                @endforeach
+            </tbody>
+        </table>
+        <div class="px-6 py-3">
+            {{ $tasks->links() }}
+        </div>
+    </div>
+</div>
