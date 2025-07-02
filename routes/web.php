@@ -7,10 +7,6 @@ Route::get('/', function () {
     return view('welcome');
 })->name('home');
 
-Route::view('dashboard', 'dashboard')
-    ->middleware(['auth', 'verified'])
-    ->name('dashboard');
-
 Route::middleware(['auth'])->group(function () {
     Route::redirect('settings', 'settings/profile');
 
@@ -23,5 +19,6 @@ Volt::route('tools', 'manage-tools')->name('tools');
 Volt::route('tasks', 'manage-tasks')->name('tasks');
 Volt::route('customers', 'manage-customers')->name('customers');
 Volt::route('tire-job-orders', 'manage-tire-job-orders')->name('tire-job-orders');
+Volt::route('dashboard', 'dashboard')->name('dashboard');
 
 require __DIR__ . '/auth.php';

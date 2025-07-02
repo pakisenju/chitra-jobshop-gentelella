@@ -5,6 +5,7 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Tool;
 use Livewire\WithPagination;
+use Illuminate\Validation\Rule;
 
 class ManageTools extends Component
 {
@@ -14,11 +15,6 @@ class ManageTools extends Component
     public $quantity;
     public $toolId;
     public $isOpen = false;
-
-    protected $rules = [
-        'name' => 'required|string|max:255|unique:tools,name',
-        'quantity' => 'required|integer|min:1'
-    ];
 
     public function render()
     {
@@ -54,7 +50,10 @@ class ManageTools extends Component
 
     public function store()
     {
-        $this->validate();
+        $this->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('tools')->ignore($this->toolId)],
+            'quantity' => 'required|integer|min:1'
+        ]);
 
         Tool::updateOrCreate(['id' => $this->toolId], [
             'name' => $this->name,

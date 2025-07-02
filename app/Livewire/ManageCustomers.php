@@ -5,6 +5,7 @@ namespace App\Livewire;
 use Livewire\Component;
 use App\Models\Customer;
 use Livewire\WithPagination;
+use Illuminate\Validation\Rule;
 
 class ManageCustomers extends Component
 {
@@ -13,10 +14,6 @@ class ManageCustomers extends Component
     public $name;
     public $customerId;
     public $isOpen = false;
-
-    protected $rules = [
-        'name' => 'required|string|max:255|unique:customers,name',
-    ];
 
     public function render()
     {
@@ -48,7 +45,9 @@ class ManageCustomers extends Component
 
     public function store()
     {
-        $this->validate();
+        $this->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('customers')->ignore($this->customerId)],
+        ]);
 
         Customer::updateOrCreate(['id' => $this->customerId], [
             'name' => $this->name,

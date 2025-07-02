@@ -6,6 +6,7 @@ use Livewire\Component;
 use App\Models\Task;
 use App\Models\Tool;
 use Livewire\WithPagination;
+use Illuminate\Validation\Rule;
 
 class ManageTasks extends Component
 {
@@ -17,11 +18,7 @@ class ManageTasks extends Component
     public $taskId;
     public $isOpen = false;
 
-    protected $rules = [
-        'name' => 'required|string|max:255|unique:tasks,name',
-        'duration' => 'required|integer|min:1',
-        'tool_id' => 'nullable|exists:tools,id'
-    ];
+    
 
     public function render()
     {
@@ -60,7 +57,11 @@ class ManageTasks extends Component
 
     public function store()
     {
-        $this->validate();
+        $this->validate([
+            'name' => ['required', 'string', 'max:255', Rule::unique('tasks')->ignore($this->taskId)],
+            'duration' => 'required|integer|min:1',
+            'tool_id' => 'nullable|exists:tools,id'
+        ]);
 
         Task::updateOrCreate(['id' => $this->taskId], [
             'name' => $this->name,

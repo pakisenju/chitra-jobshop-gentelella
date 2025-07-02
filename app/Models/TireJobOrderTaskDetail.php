@@ -19,6 +19,11 @@ class TireJobOrderTaskDetail extends Model
         'tool_id_used'
     ];
 
+    protected $casts = [
+        'actual_start_time' => 'datetime',
+        'actual_end_time' => 'datetime',
+    ];
+
     public function tireJobOrder()
     {
         return $this->belongsTo(TireJobOrder::class);

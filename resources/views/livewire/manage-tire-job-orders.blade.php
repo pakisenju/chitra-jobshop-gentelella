@@ -4,7 +4,7 @@
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Manage Tire Job Orders</h1>
-        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
             Tambah Job Order
         </button>
     </div>
@@ -75,8 +75,14 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- Task rows will be populated here -->
-                                    <!-- ... -->
+                                    @foreach ($calculatedTaskDetails as $taskDetail)
+                                        <tr class="border-b">
+                                            <td class="py-4 px-6">{{ $taskDetail['task_name'] }}</td>
+                                            <td class="py-4 px-6">{{ $taskDetail['duration_master'] }}</td>
+                                            <td class="py-4 px-6">{{ $taskDetail['qty_calculated'] }}</td>
+                                            <td class="py-4 px-6">{{ $taskDetail['total_duration_calculated'] }}</td>
+                                        </tr>
+                                    @endforeach
                                 </tbody>
                             </table>
                         </div>
@@ -84,11 +90,11 @@
 
                     <div class="flex justify-end space-x-2">
                         <button type="button" wire:click="closeModal"
-                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
                             Batal
                         </button>
                         <button type="submit"
-                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
                             Simpan Job Order
                         </button>
                     </div>
@@ -112,14 +118,16 @@
                         <td class="py-4 px-6">{{ $jobOrder->sn_tire }}</td>
                         <td class="py-4 px-6">
                             <button wire:click="edit({{ $jobOrder->id }})"
-                                class="text-blue-500 hover:text-blue-700 mr-2">Edit</button>
+                                class="text-yellow-500 hover:text-yellow-700 mr-2 cursor-pointer transition-colors"><i class="fa fa-edit"></i></button>
                             <button wire:click="delete({{ $jobOrder->id }})"
                                 onclick="return confirm('Apakah Anda yakin ingin menghapus job order ini?')"
-                                class="text-red-500 hover:text-red-700">Hapus</button>
+                                class="text-red-500 hover:text-red-700 cursor-pointer transition-colors"><i class="fa fa-trash"></i></button>
                         </td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
     </div>
-</div>
+
+    {{ $jobOrders->links() }}
+</div

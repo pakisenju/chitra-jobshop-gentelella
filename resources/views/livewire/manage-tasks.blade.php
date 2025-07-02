@@ -1,7 +1,7 @@
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Manage Tasks</h1>
-        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
             Tambah Task
         </button>
     </div>
@@ -35,7 +35,7 @@
                         <label class="block text-sm font-bold mb-2" for="duration">
                             Durasi (menit) <span class="text-red-500">*</span>
                         </label>
-                        <input wire:model="duration" type="number" min="1"
+                        <input wire:model="duration" type="number" min="0"
                             class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
                             id="duration">
                         @error('duration')
@@ -48,7 +48,7 @@
                             Tool
                         </label>
                         <select wire:model="tool_id"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                            class="shadow bg-[#FDFDFC] dark:bg-[#0a0a0a] appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
                             id="tool_id">
                             <option value="">None</option>
                             @foreach ($tools as $tool)
@@ -62,11 +62,11 @@
 
                     <div class="flex justify-end space-x-2">
                         <button type="button" wire:click="closeModal"
-                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
                             Batal
                         </button>
                         <button type="submit"
-                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
                             Simpan
                         </button>
                     </div>
@@ -80,7 +80,7 @@
         <table class="min-w-full border-collapse">
             <thead>
                 <tr>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">ID</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">No.</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Nama Task</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Durasi</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Tool</th>
@@ -90,16 +90,16 @@
             <tbody>
                 @foreach ($tasks as $task)
                     <tr class="border-b ">
-                        <td class="py-4 px-6">{{ $task->id }}</td>
+                        <td class="py-4 px-6">{{ $loop->iteration }}</td>
                         <td class="py-4 px-6">{{ $task->name }}</td>
                         <td class="py-4 px-6">{{ $task->duration }} menit</td>
                         <td class="py-4 px-6">{{ $task->tool ? $task->tool->name : 'None' }}</td>
                         <td class="py-4 px-6">
                             <button wire:click="edit({{ $task->id }})"
-                                class="text-blue-500 hover:text-blue-700 mr-2">Edit</button>
+                                class="text-yellow-500 hover:text-yellow-700 mr-2 cursor-pointer transition-colors"><i class="fa fa-edit"></i></button>
                             <button wire:click="delete({{ $task->id }})"
                                 onclick="return confirm('Apakah Anda yakin ingin menghapus task ini?')"
-                                class="text-red-500 hover:text-red-700">Hapus</button>
+                                class="text-red-500 hover:text-red-700 cursor-pointer transition-colors"><i class="fa fa-trash"></i></button>
                         </td>
                     </tr>
                 @endforeach

@@ -14,24 +14,20 @@
             <flux:navlist variant="outline">
                 <flux:navlist.group :heading="__('Platform')" class="grid">
                     <flux:navlist.item icon="home" :href="route('dashboard')" :current="request()->routeIs('dashboard')" wire:navigate>{{ __('Dashboard') }}</flux:navlist.item>
-                    <flux:navlist.item icon="user" :href="route('customers')" :current="request()->routeIs('customers')" wire:navigate>{{ __('Customers') }}</flux:navlist.item>
-                    <flux:navlist.item icon="document" :href="route('tasks')" :current="request()->routeIs('tasks')" wire:navigate>{{ __('Tasks') }}</flux:navlist.item>
-                    <flux:navlist.item icon="document" :href="route('tools')" :current="request()->routeIs('tools')" wire:navigate>{{ __('Tools') }}</flux:navlist.item>
-                    <flux:navlist.item icon="document" :href="route('tire-job-orders')" :current="request()->routeIs('tire-job-orders')" wire:navigate>{{ __('Tire Job Orders') }}</flux:navlist.item>
+                    <flux:navlist.item icon="user-group" :href="route('customers')" :current="request()->routeIs('customers')" wire:navigate>{{ __('Customers') }}</flux:navlist.item>
+                    <flux:navlist.item icon="clipboard-document-check" :href="route('tasks')" :current="request()->routeIs('tasks')" wire:navigate>{{ __('Tasks') }}</flux:navlist.item>
+                    <flux:navlist.item icon="wrench" :href="route('tools')" :current="request()->routeIs('tools')" wire:navigate>{{ __('Tools') }}</flux:navlist.item>
+                    <flux:navlist.item icon="briefcase" :href="route('tire-job-orders')" :current="request()->routeIs('tire-job-orders')" wire:navigate>{{ __('Tire Job Orders') }}</flux:navlist.item>
                 </flux:navlist.group>
             </flux:navlist>
 
             <flux:spacer />
 
-            <flux:navlist variant="outline">
-                <flux:navlist.item icon="folder-git-2" href="https://github.com/laravel/livewire-starter-kit" target="_blank">
-                {{ __('Repository') }}
-                </flux:navlist.item>
-
-                <flux:navlist.item icon="book-open-text" href="https://laravel.com/docs/starter-kits#livewire" target="_blank">
-                {{ __('Documentation') }}
-                </flux:navlist.item>
-            </flux:navlist>
+            <flux:radio.group x-data variant="segmented" x-model="$flux.appearance">
+                <flux:radio value="light" icon="sun"></flux:radio>
+                <flux:radio value="dark" icon="moon"></flux:radio>
+                {{-- <flux:radio value="system" icon="computer-desktop"></flux:radio> --}}
+            </flux:radio.group>
 
             <!-- Desktop User Menu -->
             <flux:dropdown class="hidden lg:block" position="bottom" align="start">
@@ -64,7 +60,7 @@
                     <flux:menu.separator />
 
                     <flux:menu.radio.group>
-                        <flux:menu.item :href="route('settings.profile')" icon="cog" wire:navigate>{{ __('Settings') }}</flux:menu.item>
+                        <flux:menu.item :href="route('settings.appearance')" icon="cog" wire:navigate>{{ __('Settings') }}</flux:menu.item>
                     </flux:menu.radio.group>
 
                     <flux:menu.separator />
@@ -132,5 +128,9 @@
         {{ $slot }}
 
         @fluxScripts
+        <!-- jQuery -->
+        <script type="text/javascript" charset="utf8" src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <!-- DataTables -->
+        <script type="text/javascript" charset="utf8" src="https://cdn.datatables.net/1.11.5/js/jquery.dataTables.js"></script>
     </body>
 </html>

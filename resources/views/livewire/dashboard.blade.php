@@ -1,19 +1,36 @@
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Dashboard Penjadwalan</h1>
-        <div class="flex space-x-4">
-            <a href="/manage-tools" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">Manage
-                Tools</a>
-            <a href="/manage-tasks" class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">Manage
-                Tasks</a>
-            <a href="/manage-customers"
-                class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">Manage Customers</a>
-            <a href="/manage-tire-job-orders"
-                class="bg-gray-200 hover:bg-gray-300 text-gray-800 font-bold py-2 px-4 rounded">Manage Job Orders</a>
-        </div>
+        <button wire:click="simulateScheduling" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
+            Simulate Scheduling
+        </button>
     </div>
 
-    <div class="bg-white shadow-md rounded p-4">
+    @if (!empty($simulatedTasks))
+        <div class="shadow-md rounded p-4 mb-6">
+            <h2 class="text-xl font-bold mb-4">Simulated Tasks</h2>
+            <table class="min-w-full border-collapse">
+                <thead>
+                    <tr>
+                        <th class="py-3 px-6 font-semibold text-sm text-left">Job Order SN</th>
+                        <th class="py-3 px-6 font-semibold text-sm text-left">Task Name</th>
+                        <th class="py-3 px-6 font-semibold text-sm text-left">Calculated Duration (minutes)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($simulatedTasks as $task)
+                        <tr class="border-b">
+                            <td class="py-4 px-6">{{ $task['job_order_sn'] }}</td>
+                            <td class="py-4 px-6">{{ $task['task_name'] }}</td>
+                            <td class="py-4 px-6">{{ $task['calculated_duration'] }}</td>
+                        </tr>
+                    @endforeach
+                </tbody>
+            </table>
+        </div>
+    @endif
+
+    <div class="shadow-md rounded p-4">
         <div wire:ignore id='calendar'></div>
     </div>
 </div>

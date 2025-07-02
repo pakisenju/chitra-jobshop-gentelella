@@ -4,7 +4,7 @@
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Manajemen Tools</h1>
-        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
             Tambah Tool
         </button>
     </div>
@@ -48,11 +48,11 @@
 
                     <div class="flex justify-end space-x-2">
                         <button type="button" wire:click="closeModal"
-                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
                             Batal
                         </button>
                         <button type="submit"
-                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
                             Simpan
                         </button>
                     </div>
@@ -66,7 +66,7 @@
         <table class="min-w-full border-collapse">
             <thead>
                 <tr>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">ID</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">No.</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Nama Tool</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Jumlah</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Aksi</th>
@@ -75,15 +75,15 @@
             <tbody>
                 @foreach ($tools as $tool)
                     <tr class="border-b ">
-                        <td class="py-4 px-6">{{ $tool->id }}</td>
+                        <td class="py-4 px-6">{{ $loop->iteration }}</td>
                         <td class="py-4 px-6">{{ $tool->name }}</td>
                         <td class="py-4 px-6">{{ $tool->quantity }}</td>
                         <td class="py-4 px-6">
                             <button wire:click="edit({{ $tool->id }})"
-                                class="text-blue-500 hover:text-blue-700 mr-2">Edit</button>
+                                class="text-yellow-500 hover:text-yellow-700 mr-2 cursor-pointer transition-colors"><i class="fa fa-edit"></i></button>
                             <button wire:click="delete({{ $tool->id }})"
                                 onclick="return confirm('Apakah Anda yakin ingin menghapus tool ini?')"
-                                class="text-red-500 hover:text-red-700">Hapus</button>
+                                class="text-red-500 hover:text-red-700 cursor-pointer transition-colors"><i class="fa fa-trash"></i></button>
                         </td>
                     </tr>
                 @endforeach

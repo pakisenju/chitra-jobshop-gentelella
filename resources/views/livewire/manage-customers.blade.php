@@ -1,7 +1,7 @@
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Manage Customers</h1>
-        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
             Tambah Customer
         </button>
     </div>
@@ -33,11 +33,11 @@
 
                     <div class="flex justify-end space-x-2">
                         <button type="button" wire:click="closeModal"
-                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
                             Batal
                         </button>
                         <button type="submit"
-                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
                             Simpan
                         </button>
                     </div>
@@ -59,21 +59,20 @@
             <tbody>
                 @foreach ($customers as $customer)
                     <tr class="border-b ">
-                        <td class="py-4 px-6">{{ $customer->id }}</td>
+                        <td class="py-4 px-6">{{ $loop->iteration }}</td>
                         <td class="py-4 px-6">{{ $customer->name }}</td>
                         <td class="py-4 px-6">
                             <button wire:click="edit({{ $customer->id }})"
-                                class="text-blue-500 hover:text-blue-700 mr-2">Edit</button>
+                                class="text-yellow-500 hover:text-yellow-700 mr-2 cursor-pointer transition-colors"><i class="fa fa-edit"></i></button>
                             <button wire:click="delete({{ $customer->id }})"
                                 onclick="return confirm('Apakah Anda yakin ingin menghapus customer ini?')"
-                                class="text-red-500 hover:text-red-700">Hapus</button>
+                                class="text-red-500 hover:text-red-700 cursor-pointer transition-colors"><i class="fa fa-trash"></i></button>
                         </td>
                     </tr>
                 @endforeach
             </tbody>
         </table>
-        <div class="px-6 py-3">
-            {{ $customers->links() }}
-        </div>
     </div>
+
+    {{ $customers->links() }}
 </div>
