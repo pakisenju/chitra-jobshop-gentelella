@@ -13,176 +13,130 @@ use Illuminate\Support\Carbon;
 class Dashboard extends Component
 {
     public $events = [];
-    public $simulatedTasks = [];
-    protected $toolAvailability = [];
+    public $showTaskDetailModal = false;
+    public $selectedTaskDetail;
+    public $jobOrders = [];
+    public $tools = [];
+    public $selectedJobOrderId = '';
+    public $selectedToolId = '';
+
+
+    protected $listeners = ['showTaskDetail', 'refreshCalendar'];
 
     public function mount()
     {
-        $this->initializeToolAvailability();
-        $this->scheduleJobs();
+        $this->jobOrders = TireJobOrder::all();
+        $this->tools = Tool::all();
     }
 
-    private function initializeToolAvailability()
+    public function runScheduler()
     {
-        $this->toolAvailability = [];
-        $tools = Tool::all();
-        foreach ($tools as $tool) {
-            for ($i = 0; $i < $tool->quantity; $i++) {
-                $this->toolAvailability[$tool->name][] = Carbon::now('Asia/Makassar');
-            }
+        \Illuminate\Support\Facades\Artisan::call('schedule:tasks');
+        session()->flash('message', 'Scheduler command executed.');
+        $this->dispatch('refreshCalendar'); // Dispatch event to refresh calendar on frontend
+    }
+
+    public function showTaskDetail($jobOrderId, $taskId)
+    {
+        $this->selectedTaskDetail = TireJobOrderTaskDetail::with(['task.tools', 'tireJobOrder'])
+            ->where('tire_job_order_id', $jobOrderId)
+            ->where('task_id', $taskId)
+            ->first();
+
+        $this->showTaskDetailModal = true;
+    }
+
+    public function closeTaskDetailModal()
+    {
+        $this->showTaskDetailModal = false;
+        $this->selectedTaskDetail = null;
+    }
+
+    public function getEvents()
+    {
+        $events = [];
+
+        $query = TireJobOrderTaskDetail::with(['task.tools', 'tireJobOrder'])
+            ->where('status', 'scheduled')
+            ->whereNotNull('start_time')
+            ->whereNotNull('end_time');
+
+        if ($this->selectedJobOrderId) {
+            $query->where('tire_job_order_id', $this->selectedJobOrderId);
         }
-    }
 
-    public function scheduleJobs()
-    {
-        // Reset penjadwalan sebelumnya
-        TireJobOrderTaskDetail::where('qty_calculated', '>', 0)
-            ->update([
-                'actual_start_time' => null,
-                'actual_end_time' => null,
-                'tool_id_used' => null
-            ]);
+        if ($this->selectedToolId) {
+            $query->whereHas('task.tools', function ($q) {
+                $q->where('tools.id', $this->selectedToolId);
+            });
+        }
 
-        // Inisialisasi ulang ketersediaan tools
-        $this->initializeToolAvailability();
+        $scheduledTasks = $query->get()->groupBy('tire_job_order_id');
 
-        // Ambil semua task yang akan dijadwalkan
-        $unscheduledTasks = TireJobOrderTaskDetail::with(['task', 'tireJobOrder'])
-            ->where('qty_calculated', '>', 0)
-            ->orderBy('tire_job_order_id')
-            ->orderBy('id')
-            ->get();
 
-        $previousJobOrderEndTimes = [];
-
-        DB::transaction(function () use ($unscheduledTasks) {
-            $previousJobOrderEndTimes = []; // Track end time for each job order
-
-            foreach ($unscheduledTasks as $taskDetail) {
-                $task = Task::find($taskDetail->task_id);
-
-                $earliestPossibleStartTime = Carbon::now();
-
-                // Consider previous task in the same job order
-                if (isset($previousJobOrderEndTimes[$taskDetail->tire_job_order_id])) {
-                    $earliestPossibleStartTime = $earliestPossibleStartTime->max($previousJobOrderEndTimes[$taskDetail->tire_job_order_id]);
+        foreach ($scheduledTasks as $jobOrderId => $tasksInJobOrder) {
+            $sortedTasks = $tasksInJobOrder->sortBy('start_time');
+            $taskNumber = 1;
+            foreach ($sortedTasks as $taskDetail) {
+                $toolNames = $taskDetail->task->tools->pluck('name')->implode(', ');
+                if (empty($toolNames)) {
+                    $toolNames = 'None';
                 }
 
-                $selectedToolInstanceKey = null;
-                if ($task->tool_id !== null) {
-                    $toolName = Tool::find($task->tool_id)->name;
-                    if (!isset($this->toolAvailability[$toolName])) {
-                        // This tool is not initialized, which means its quantity is 0 or it doesn't exist.
-                        // Handle this case, e.g., skip task or log an error.
-                        continue;
-                    }
+                $colors = $this->getEventColor($taskDetail->tire_job_order_id);
 
-                    $earliestToolAvailableTime = null;
-                    foreach ($this->toolAvailability[$toolName] as $key => $availableTime) {
-                        if ($earliestToolAvailableTime === null || $availableTime->lt($earliestToolAvailableTime)) {
-                            $earliestToolAvailableTime = $availableTime;
-                            $selectedToolInstanceKey = $key;
-                        }
-                    }
-
-                    if ($earliestToolAvailableTime !== null) {
-                        $earliestPossibleStartTime = $earliestPossibleStartTime->max($earliestToolAvailableTime);
-                    } else {
-                        // No tool instance available, skip this task for now
-                        continue;
-                    }
-                }
-
-                $startTime = $earliestPossibleStartTime;
-                $endTime = $startTime->copy()->addMinutes($taskDetail->total_duration_calculated);
-
-                // Update tool availability
-                if ($task->tool_id !== null && $selectedToolInstanceKey !== null) {
-                    $toolName = Tool::find($task->tool_id)->name;
-                    $this->toolAvailability[$toolName][$selectedToolInstanceKey] = $endTime;
-                }
-
-                // Simpan jadwal
-                $taskDetail->update([
-                    'actual_start_time' => $startTime,
-                    'actual_end_time' => $endTime
-                ]);
-
-                // Update previous job order end time
-                $previousJobOrderEndTimes[$taskDetail->tire_job_order_id] = $endTime;
-
-                // Format event untuk kalender
-                $this->events[] = [
-                    'title' => $taskDetail->tireJobOrder->sn_tire . ' - ' . $task->name . ' (' . ($task->tool_id ? Tool::find($task->tool_id)->name : 'none') . ')',
-                    'start' => $startTime->toDateTimeString(),
-                    'end' => $endTime->toDateTimeString(),
+                $events[] = [
+                    'title' => $taskNumber . '. ' . $taskDetail->tireJobOrder->sn_tire . ' - ' . $taskDetail->task->name . ' (' . $toolNames . ')',
+                    'start' => $taskDetail->start_time->toIso8601String(),
+                    'end' => $taskDetail->end_time->toIso8601String(),
+                    'backgroundColor' => $colors['backgroundColor'],
+                    'borderColor' => $colors['borderColor'],
+                    'textColor' => $colors['textColor'],
+                    'extendedProps' => [
+                        'jobOrderId' => $taskDetail->tire_job_order_id,
+                        'taskId' => $taskDetail->task_id
+                    ]
                 ];
+                $taskNumber++;
             }
-        });
-    }
-
-    private function loadScheduledEvents()
-    {
-        $this->events = [];
-
-        $scheduledTasks = TireJobOrderTaskDetail::with(['task', 'tireJobOrder', 'toolUsed'])
-            ->where('qty_calculated', '>', 0)
-            ->whereNotNull('actual_start_time')
-            ->whereNotNull('actual_end_time')
-            ->get();
-
-        foreach ($scheduledTasks as $taskDetail) {
-            $toolName = $taskDetail->toolUsed ? $taskDetail->toolUsed->name : 'none';
-
-            $this->events[] = [
-                'title' => $taskDetail->tireJobOrder->sn_tire . ' - ' . $taskDetail->task->name . ' (' . $toolName . ')',
-                'start' => $taskDetail->actual_start_time->toIso8601String(),
-                'end' => $taskDetail->actual_end_time->toIso8601String(),
-                'backgroundColor' => $this->getEventColor($toolName),
-                'borderColor' => $this->getEventColor($toolName),
-                'extendedProps' => [
-                    'jobOrderId' => $taskDetail->tire_job_order_id,
-                    'taskId' => $taskDetail->task_id
-                ]
-            ];
         }
+        return $events;
     }
 
-    private function getEventColor(string $toolName): string
+    public function updatedSelectedJobOrderId()
     {
-        $colors = [
-            'airbuffing high' => '#ff0000',
-            'extruder' => '#0000ff',
-            'none' => '#808080'
+        $this->dispatch('refreshCalendar');
+    }
+
+    public function updatedSelectedToolId()
+    {
+        $this->dispatch('refreshCalendar');
+    }
+
+    private function getEventColor(int $jobOrderId): array
+    {
+        // Generate a consistent color based on the job order ID
+        $hash = md5((string)$jobOrderId);
+        $backgroundColor = '#' . substr($hash, 0, 6);
+
+        // Determine text color based on background brightness
+        $hex = str_replace('#', '', $backgroundColor);
+        $r = hexdec(substr($hex, 0, 2));
+        $g = hexdec(substr($hex, 2, 2));
+        $b = hexdec(substr($hex, 4, 2));
+        $brightness = (($r * 299) + ($g * 587) + ($b * 114)) / 1000;
+
+        $textColor = $brightness > 155 ? '#000000' : '#FFFFFF';
+
+        return [
+            'backgroundColor' => $backgroundColor,
+            'borderColor' => $backgroundColor,
+            'textColor' => $textColor,
         ];
-
-        return $colors[$toolName] ?? '#' . substr(md5($toolName), 0, 6);
-    }
-
-    public function simulateScheduling()
-    {
-        $this->simulatedTasks = [];
-
-        $jobOrders = TireJobOrder::with('taskDetails.task')->get();
-
-        foreach ($jobOrders as $jobOrder) {
-            foreach ($jobOrder->taskDetails as $taskDetail) {
-                if ($taskDetail->total_duration_calculated > 0) {
-                    $this->simulatedTasks[] = [
-                        'job_order_sn' => $jobOrder->sn_tire,
-                        'task_name' => $taskDetail->task->name,
-                        'calculated_duration' => $taskDetail->total_duration_calculated,
-                    ];
-                }
-            }
-        }
     }
 
     public function render()
     {
-        $this->loadScheduledEvents();
-        return view('livewire.dashboard', [
-            'simulatedTasks' => $this->simulatedTasks,
-        ]);
+        return view('livewire.dashboard');
     }
 }

@@ -9,10 +9,15 @@ class TireJobOrder extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['sn_tire'];
+    protected $fillable = ['sn_tire', 'tread', 'sidewall', 'customer_id'];
 
-    public function taskDetails()
+    public function tireJobOrderTaskDetails()
     {
         return $this->hasMany(TireJobOrderTaskDetail::class);
+    }
+
+    public function customer()
+    {
+        return $this->belongsTo(Customer::class);
     }
 }

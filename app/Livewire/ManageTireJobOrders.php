@@ -6,68 +6,33 @@ use Livewire\Component;
 use App\Models\TireJobOrder;
 use App\Models\Task;
 use App\Models\TireJobOrderTaskDetail;
+use App\Models\Customer;
 
 class ManageTireJobOrders extends Component
 {
     public $sn_tire;
     public $tread;
     public $sidewall;
+    public $customer_id;
     public $jobOrderId;
     public $isOpen = false;
-    public $calculatedTaskDetails = [];
 
     protected $rules = [
-        'sn_tire' => 'required|string|max:255|unique:tire_job_orders,sn_tire',
+        'sn_tire' => 'required|string|max:255',
         'tread' => 'nullable|integer|min:0',
         'sidewall' => 'nullable|integer|min:0',
+        'customer_id' => 'required|exists:customers,id',
     ];
-
-    public function mount()
-    {
-        $this->calculateTaskDetails();
-    }
-
-    public function updatedTread()
-    {
-        $this->calculateTaskDetails();
-    }
-
-    public function updatedSidewall()
-    {
-        $this->calculateTaskDetails();
-    }
-
-    public function calculateTaskDetails()
-    {
-        $this->calculatedTaskDetails = [];
-        $tasks = Task::all();
-
-        foreach ($tasks as $task) {
-            $qtyCalculated = 1;
-            if (stripos($task->name, 'tread') !== false) {
-                $qtyCalculated = $this->tread ?? 0;
-            } elseif (stripos($task->name, 'sidewall') !== false) {
-                $qtyCalculated = $this->sidewall ?? 0;
-            }
-            $totalDurationCalculated = $task->duration * $qtyCalculated;
-
-            $this->calculatedTaskDetails[] = [
-                'task_name' => $task->name,
-                'duration_master' => $task->duration,
-                'qty_calculated' => $qtyCalculated,
-                'total_duration_calculated' => $totalDurationCalculated,
-            ];
-        }
-    }
 
     public function render()
     {
-        $jobOrders = TireJobOrder::paginate(10);
+        $jobOrders = TireJobOrder::with(['tireJobOrderTaskDetails', 'customer'])->paginate(10);
+        $customers = Customer::all();
 
         return view('livewire.manage-tire-job-orders', [
             'jobOrders' => $jobOrders,
             'isOpen' => $this->isOpen,
-            'calculatedTaskDetails' => $this->calculatedTaskDetails,
+            'customers' => $customers,
         ]);
     }
 
@@ -82,6 +47,7 @@ class ManageTireJobOrders extends Component
         $this->sn_tire = '';
         $this->tread = null;
         $this->sidewall = null;
+        $this->customer_id = null;
         $this->jobOrderId = '';
     }
 
@@ -99,16 +65,11 @@ class ManageTireJobOrders extends Component
     {
         $this->validate();
 
-        TireJobOrder::updateOrCreate(['id' => $this->jobOrderId], [
-            'sn_tire' => $this->sn_tire,
-            'tread' => $this->tread,
-            'sidewall' => $this->sidewall,
-        ]);
-
         $tireJobOrder = TireJobOrder::updateOrCreate(['id' => $this->jobOrderId], [
             'sn_tire' => $this->sn_tire,
             'tread' => $this->tread,
             'sidewall' => $this->sidewall,
+            'customer_id' => $this->customer_id,
         ]);
 
         $tasks = Task::all();
@@ -130,7 +91,7 @@ class ManageTireJobOrders extends Component
                 [
                     'qty_calculated' => $qtyCalculated,
                     'total_duration_calculated' => $totalDurationCalculated,
-                    'tool_id_used' => $task->tool_id, // Assuming tool_id_used is the same as task's tool_id
+                    'status' => 'pending',
                 ]
             );
         }
@@ -152,8 +113,7 @@ class ManageTireJobOrders extends Component
         $this->sn_tire = $jobOrder->sn_tire;
         $this->tread = $jobOrder->tread;
         $this->sidewall = $jobOrder->sidewall;
-
-        $this->calculateTaskDetails();
+        $this->customer_id = $jobOrder->customer_id;
 
         $this->openModal();
     }

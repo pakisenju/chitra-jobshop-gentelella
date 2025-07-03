@@ -1,59 +1,151 @@
 <div class="container mx-auto px-4 py-8">
     <div class="flex justify-between items-center mb-6">
         <h1 class="text-2xl font-bold">Dashboard Penjadwalan</h1>
-        <button wire:click="simulateScheduling" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
-            Simulate Scheduling
-        </button>
-    </div>
-
-    @if (!empty($simulatedTasks))
-        <div class="shadow-md rounded p-4 mb-6">
-            <h2 class="text-xl font-bold mb-4">Simulated Tasks</h2>
-            <table class="min-w-full border-collapse">
-                <thead>
-                    <tr>
-                        <th class="py-3 px-6 font-semibold text-sm text-left">Job Order SN</th>
-                        <th class="py-3 px-6 font-semibold text-sm text-left">Task Name</th>
-                        <th class="py-3 px-6 font-semibold text-sm text-left">Calculated Duration (minutes)</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    @foreach ($simulatedTasks as $task)
-                        <tr class="border-b">
-                            <td class="py-4 px-6">{{ $task['job_order_sn'] }}</td>
-                            <td class="py-4 px-6">{{ $task['task_name'] }}</td>
-                            <td class="py-4 px-6">{{ $task['calculated_duration'] }}</td>
-                        </tr>
+        <div class="flex items-center space-x-4">
+            <div>
+                {{-- <label for="job_order_filter" class="block text-sm font-medium text-gray-700">Filter by Job Order:</label> --}}
+                <select id="job_order_filter" wire:model.live="selectedJobOrderId" class="shadow bg-[#FDFDFC] dark:bg-[#0a0a0a] appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline">
+                    <option value="">All Job Orders</option>
+                    @foreach ($jobOrders as $jobOrder)
+                        <option value="{{ $jobOrder->id }}">{{ $jobOrder->sn_tire }}</option>
                     @endforeach
-                </tbody>
-            </table>
+                </select>
+            </div>
+            <div>
+                {{-- <label for="tool_filter" class="block text-sm font-medium text-gray-700">Filter by Tool:</label> --}}
+                <select id="tool_filter" wire:model.live="selectedToolId" class="shadow bg-[#FDFDFC] dark:bg-[#0a0a0a] appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline">
+                    <option value="">All Tools</option>
+                    @foreach ($tools as $tool)
+                        <option value="{{ $tool->id }}">{{ $tool->name }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <button wire:click="runScheduler" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
+                Run Scheduler
+            </button>
         </div>
-    @endif
+    </div>
 
     <div class="shadow-md rounded p-4">
-        <div wire:ignore id='calendar'></div>
+        <div wire:ignore id='calendar' style="max-height: 575px;"></div>
     </div>
+
+    <!-- Task Detail Modal -->
+    @if ($showTaskDetailModal)
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+            <div class="relative p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-zinc-800">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Detail Task</h3>
+                @if ($selectedTaskDetail)
+                    <div class="mt-2 text-sm text-gray-500 dark:text-gray-300">
+                        <p><strong>Job Order SN:</strong> {{ $selectedTaskDetail->tireJobOrder->sn_tire }}</p>
+                        <p><strong>Task Name:</strong> {{ $selectedTaskDetail->task->name }}</p>
+                        <p><strong>Duration:</strong> {{ $selectedTaskDetail->total_duration_calculated }} menit</p>
+                        <p><strong>Tools Required:</strong>
+                            @forelse ($selectedTaskDetail->task->tools as $tool)
+                                <span class="inline-block bg-gray-200 rounded-full px-2 py-0.5 text-xs font-semibold text-gray-700 mr-1">{{ $tool->name }}</span>
+                            @empty
+                                None
+                            @endforelse
+                        </p>
+                        <p><strong>Start Time:</strong> {{ $selectedTaskDetail->start_time ? $selectedTaskDetail->start_time->format('Y-m-d H:i') : 'N/A' }}</p>
+                        <p><strong>End Time:</strong> {{ $selectedTaskDetail->end_time ? $selectedTaskDetail->end_time->format('Y-m-d H:i') : 'N/A' }}</p>
+                        <p><strong>Status:</strong> {{ $selectedTaskDetail->status }}</p>
+                    </div>
+                @else
+                    <p class="mt-2 text-sm text-gray-500 dark:text-gray-300">Detail task tidak ditemukan.</p>
+                @endif
+                <div class="mt-4 flex justify-end">
+                    <button wire:click="closeTaskDetailModal" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
 
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <script>
-        document.addEventListener('livewire:initialized', () => {
-            const calendarEl = document.getElementById('calendar');
-            const calendar = new FullCalendar.Calendar(calendarEl, {
-                initialView: 'dayGridMonth',
-                headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
-                    right: 'dayGridMonth,timeGridWeek,timeGridDay'
-                },
-                events: @json($events)
-            });
-            calendar.render();
+        // Wrap in a function to avoid polluting global scope and to manage state
+        (function() {
+            // Use a property on the window object to hold the calendar instance.
+            // This prevents re-declaration errors during Livewire page swaps.
+            window.dashboardCalendar = window.dashboardCalendar || null;
 
-            Livewire.on('refreshCalendar', () => {
-                calendar.refetchEvents();
-            });
-        });
+            const initializeDashboardCalendar = () => {
+                const calendarEl = document.getElementById('calendar');
+
+                // Only initialize if the element exists and there's no active calendar instance.
+                if (!calendarEl || window.dashboardCalendar) {
+                    return;
+                }
+
+                console.log('Initializing FullCalendar for dashboard...');
+
+                window.dashboardCalendar = new FullCalendar.Calendar(calendarEl, {
+                    initialView: 'timeGridWeek',
+                    headerToolbar: {
+                        left: 'prev,next today',
+                        center: 'title',
+                        right: 'dayGridMonth,timeGridWeek,timeGridDay'
+                    },
+                    slotMinTime: '06:00:00',
+                    slotMaxTime: '22:00:00',
+                    slotDuration: '00:05:00',
+                    slotLabelInterval: {
+                        minutes: 5
+                    },
+                    slotLabelFormat: {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        hour12: false
+                    },
+                    events: (fetchInfo, successCallback, failureCallback) => {
+                        const componentEl = calendarEl.closest('[wire\\:id]');
+                        if (componentEl) {
+                            const component = Livewire.find(componentEl.getAttribute('wire:id'));
+                            if (component) {
+                                component.getEvents().then(events => successCallback(events));
+                                return;
+                            }
+                        }
+                        failureCallback(new Error('Livewire component not found'));
+                    },
+                    eventClick: function(info) {
+                        Livewire.dispatch('showTaskDetail', {
+                            jobOrderId: info.event.extendedProps.jobOrderId,
+                            taskId: info.event.extendedProps.taskId
+                        });
+                    }
+                });
+
+                window.dashboardCalendar.render();
+                console.log('FullCalendar rendered.');
+            };
+
+            const destroyDashboardCalendar = () => {
+                if (window.dashboardCalendar) {
+                    console.log('Destroying FullCalendar instance.');
+                    window.dashboardCalendar.destroy();
+                    window.dashboardCalendar = null;
+                }
+            };
+
+            // Add event listeners for Livewire navigation events.
+            document.addEventListener('livewire:navigated', initializeDashboardCalendar);
+            document.addEventListener('livewire:navigating', destroyDashboardCalendar);
+
+            // Ensure the refresh listener is only set up once.
+            if (!window.isCalendarRefreshListenerSet) {
+                Livewire.on('refreshCalendar', () => {
+                    console.log('refreshCalendar event fired.');
+                    if (window.dashboardCalendar) {
+                        window.dashboardCalendar.refetchEvents();
+                    }
+                });
+                window.isCalendarRefreshListenerSet = true;
+            }
+        })();
     </script>
 @endpush

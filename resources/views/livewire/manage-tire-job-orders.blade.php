@@ -23,6 +23,23 @@
 
                 <form wire:submit.prevent="store">
                     <div class="mb-4">
+                        <label class="block text-sm font-bold mb-2" for="customer_id">
+                            Customer <span class="text-red-500">*</span>
+                        </label>
+                        <select wire:model="customer_id"
+                            class="shadow bg-[#FDFDFC] dark:bg-[#0a0a0a] appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                            id="customer_id">
+                            <option value="">Pilih Customer</option>
+                            @foreach ($customers as $customer)
+                                <option value="{{ $customer->id }}">{{ $customer->name }}</option>
+                            @endforeach
+                        </select>
+                        @error('customer_id')
+                            <span class="text-red-500 text-xs">{{ $message }}</span>
+                        @enderror
+                    </div>
+
+                    <div class="mb-4">
                         <label class="block text-sm font-bold mb-2" for="sn_tire">
                             SN Tire <span class="text-red-500">*</span>
                         </label>
@@ -53,39 +70,6 @@
                                 class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
                                 id="sidewall">
                         </div>
-
-                        <!-- Add other inspection inputs similarly -->
-                        <!-- ... -->
-                    </div>
-
-                    <!-- Task Summary Table -->
-                    <div class="mb-6">
-                        <h3 class="text-lg font-semibold mb-2">Ringkasan Task</h3>
-                        <div class="shadow-md rounded">
-                            <table class="min-w-full border-collapse">
-                                <thead>
-                                    <tr>
-                                        <th class="py-3 px-6 font-semibold text-sm text-left">Nama Task</th>
-                                        <th class="py-3 px-6 font-semibold text-sm text-left">Durasi Master
-                                        </th>
-                                        <th class="py-3 px-6 font-semibold text-sm text-left">Qty Calculated
-                                        </th>
-                                        <th class="py-3 px-6 font-semibold text-sm text-left">Total Duration
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    @foreach ($calculatedTaskDetails as $taskDetail)
-                                        <tr class="border-b">
-                                            <td class="py-4 px-6">{{ $taskDetail['task_name'] }}</td>
-                                            <td class="py-4 px-6">{{ $taskDetail['duration_master'] }}</td>
-                                            <td class="py-4 px-6">{{ $taskDetail['qty_calculated'] }}</td>
-                                            <td class="py-4 px-6">{{ $taskDetail['total_duration_calculated'] }}</td>
-                                        </tr>
-                                    @endforeach
-                                </tbody>
-                            </table>
-                        </div>
                     </div>
 
                     <div class="flex justify-end space-x-2">
@@ -108,14 +92,30 @@
         <table class="min-w-full border-collapse">
             <thead>
                 <tr>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Customer</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">SN Tire</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Tread</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Sidewall</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Tasks</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Aksi</th>
                 </tr>
             </thead>
             <tbody>
                 @foreach ($jobOrders as $jobOrder)
                     <tr class="border-b">
+                        <td class="py-4 px-6">{{ $jobOrder->customer->name ?? 'N/A' }}</td>
                         <td class="py-4 px-6">{{ $jobOrder->sn_tire }}</td>
+                        <td class="py-4 px-6">{{ $jobOrder->tread }}</td>
+                        <td class="py-4 px-6">{{ $jobOrder->sidewall }}</td>
+                        <td class="py-4 px-6">
+                            @php
+                                $scheduledCount = $jobOrder->tireJobOrderTaskDetails->where('status', 'scheduled')->count();
+                                $doneCount = $jobOrder->tireJobOrderTaskDetails->where('status', 'done')->count();
+                                $totalTasks = $jobOrder->tireJobOrderTaskDetails->count();
+                            @endphp
+                            Scheduled: {{ $scheduledCount }} / {{ $totalTasks }}<br>
+                            Done: {{ $doneCount }} / {{ $totalTasks }}
+                        </td>
                         <td class="py-4 px-6">
                             <button wire:click="edit({{ $jobOrder->id }})"
                                 class="text-yellow-500 hover:text-yellow-700 mr-2 cursor-pointer transition-colors"><i class="fa fa-edit"></i></button>
@@ -130,4 +130,4 @@
     </div>
 
     {{ $jobOrders->links() }}
-</div
+</div>

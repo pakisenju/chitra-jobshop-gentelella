@@ -9,10 +9,10 @@ class Task extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['name', 'duration', 'tool_id'];
+    protected $fillable = ['name', 'duration'];
 
-    public function tool()
+    public function tools()
     {
-        return $this->belongsTo(Tool::class);
+        return $this->belongsToMany(Tool::class);
     }
 }

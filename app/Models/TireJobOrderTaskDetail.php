@@ -14,14 +14,14 @@ class TireJobOrderTaskDetail extends Model
         'task_id',
         'qty_calculated',
         'total_duration_calculated',
-        'actual_start_time',
-        'actual_end_time',
-        'tool_id_used'
+        'start_time',
+        'end_time',
+        'status'
     ];
 
     protected $casts = [
-        'actual_start_time' => 'datetime',
-        'actual_end_time' => 'datetime',
+        'start_time' => 'datetime',
+        'end_time' => 'datetime',
     ];
 
     public function tireJobOrder()

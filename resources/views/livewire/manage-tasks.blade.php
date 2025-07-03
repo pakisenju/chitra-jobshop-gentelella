@@ -44,18 +44,20 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="block text-sm font-bold mb-2" for="tool_id">
-                            Tool
+                        <label class="block text-sm font-bold mb-2" for="selectedTools">
+                            Tools
                         </label>
-                        <select wire:model="tool_id"
+                        <select wire:model="selectedTools" multiple
                             class="shadow bg-[#FDFDFC] dark:bg-[#0a0a0a] appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                            id="tool_id">
-                            <option value="">None</option>
+                            id="selectedTools">
                             @foreach ($tools as $tool)
                                 <option value="{{ $tool->id }}">{{ $tool->name }}</option>
                             @endforeach
                         </select>
-                        @error('tool_id')
+                        @error('selectedTools')
+                            <span class="text-red-500 text-xs">{{ $message }}</span>
+                        @enderror
+                        @error('selectedTools.*')
                             <span class="text-red-500 text-xs">{{ $message }}</span>
                         @enderror
                     </div>
@@ -83,7 +85,7 @@
                     <th class="py-3 px-6 font-semibold text-sm text-left">No.</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Nama Task</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Durasi</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Tool</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Tools</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Aksi</th>
                 </tr>
             </thead>
@@ -93,7 +95,13 @@
                         <td class="py-4 px-6">{{ $loop->iteration }}</td>
                         <td class="py-4 px-6">{{ $task->name }}</td>
                         <td class="py-4 px-6">{{ $task->duration }} menit</td>
-                        <td class="py-4 px-6">{{ $task->tool ? $task->tool->name : 'None' }}</td>
+                        <td class="py-4 px-6">
+                            @forelse ($task->tools as $tool)
+                                <span class="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2">{{ $tool->name }}</span>
+                            @empty
+                                None
+                            @endforelse
+                        </td>
                         <td class="py-4 px-6">
                             <button wire:click="edit({{ $task->id }})"
                                 class="text-yellow-500 hover:text-yellow-700 mr-2 cursor-pointer transition-colors"><i class="fa fa-edit"></i></button>

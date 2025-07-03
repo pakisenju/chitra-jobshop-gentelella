@@ -14,15 +14,13 @@ class ManageTasks extends Component
 
     public $name;
     public $duration;
-    public $tool_id;
+    public $selectedTools = [];
     public $taskId;
     public $isOpen = false;
 
-    
-
     public function render()
     {
-        $tasks = Task::with('tool')->paginate(10);
+        $tasks = Task::with('tools')->paginate(10);
         $tools = Tool::all();
 
         return view('livewire.manage-tasks', [
@@ -51,7 +49,7 @@ class ManageTasks extends Component
     {
         $this->name = '';
         $this->duration = '';
-        $this->tool_id = null;
+        $this->selectedTools = [];
         $this->taskId = '';
     }
 
@@ -60,14 +58,16 @@ class ManageTasks extends Component
         $this->validate([
             'name' => ['required', 'string', 'max:255', Rule::unique('tasks')->ignore($this->taskId)],
             'duration' => 'required|integer|min:1',
-            'tool_id' => 'nullable|exists:tools,id'
+            'selectedTools' => 'nullable|array',
+            'selectedTools.*' => 'exists:tools,id',
         ]);
 
-        Task::updateOrCreate(['id' => $this->taskId], [
+        $task = Task::updateOrCreate(['id' => $this->taskId], [
             'name' => $this->name,
             'duration' => $this->duration,
-            'tool_id' => $this->tool_id
         ]);
+
+        $task->tools()->sync($this->selectedTools);
 
         session()->flash(
             'message',
@@ -80,12 +80,12 @@ class ManageTasks extends Component
 
     public function edit($id)
     {
-        $task = Task::findOrFail($id);
+        $task = Task::with('tools')->findOrFail($id);
 
         $this->taskId = $id;
         $this->name = $task->name;
         $this->duration = $task->duration;
-        $this->tool_id = $task->tool_id;
+        $this->selectedTools = $task->tools->pluck('id')->toArray();
 
         $this->openModal();
     }
