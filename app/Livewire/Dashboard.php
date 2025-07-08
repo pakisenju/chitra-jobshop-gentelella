@@ -19,6 +19,8 @@ class Dashboard extends Component
     public $tools = [];
     public $selectedJobOrderId = '';
     public $selectedToolId = '';
+    public $showShiftSelectionModal = false;
+    public $selectedShift = '';
 
 
     protected $listeners = ['showTaskDetail', 'refreshCalendar'];
@@ -31,9 +33,43 @@ class Dashboard extends Component
 
     public function runScheduler()
     {
-        \Illuminate\Support\Facades\Artisan::call('schedule:tasks');
-        session()->flash('message', 'Scheduler command executed.');
-        $this->dispatch('refreshCalendar'); // Dispatch event to refresh calendar on frontend
+        $this->showShiftSelectionModal = true;
+    }
+
+    public function startScheduling()
+    {
+        $this->validate([
+            'selectedShift' => 'required|in:pagi,malam',
+        ]);
+
+        \Illuminate\Support\Facades\Artisan::call('schedule:tasks', [
+            '--shift' => $this->selectedShift,
+        ]);
+
+        session()->flash('message', 'Scheduler command executed for ' . $this->selectedShift . ' shift.');
+        $this->dispatch('refreshCalendar');
+        $this->closeShiftSelectionModal();
+    }
+
+    public function closeShiftSelectionModal()
+    {
+        $this->showShiftSelectionModal = false;
+        $this->selectedShift = '';
+    }
+
+    public function markTaskAsDone($jobOrderId, $taskId)
+    {
+        $taskDetail = TireJobOrderTaskDetail::where('tire_job_order_id', $jobOrderId)
+            ->where('task_id', $taskId)
+            ->first();
+
+        if ($taskDetail) {
+            $taskDetail->status = 'done';
+            $taskDetail->save();
+            session()->flash('message', 'Task marked as done.');
+            $this->dispatch('refreshCalendar');
+            $this->closeTaskDetailModal();
+        }
     }
 
     public function showTaskDetail($jobOrderId, $taskId)
@@ -57,7 +93,8 @@ class Dashboard extends Component
         $events = [];
 
         $query = TireJobOrderTaskDetail::with(['task.tools', 'tireJobOrder'])
-            ->where('status', 'scheduled')
+            ->whereIn('status', ['scheduled', 'done'])
+            ->where('total_duration_calculated', '>', 0)
             ->whereNotNull('start_time')
             ->whereNotNull('end_time');
 
@@ -83,10 +120,12 @@ class Dashboard extends Component
                     $toolNames = 'None';
                 }
 
-                $colors = $this->getEventColor($taskDetail->tire_job_order_id);
+                $colors = $this->getEventColor($taskDetail->tire_job_order_id, $taskDetail->status);
+
+                $title = $taskNumber . '. ' . $taskDetail->tireJobOrder->sn_tire . ' - ' . $taskDetail->task->name . ' (' . $toolNames . ')';
 
                 $events[] = [
-                    'title' => $taskNumber . '. ' . $taskDetail->tireJobOrder->sn_tire . ' - ' . $taskDetail->task->name . ' (' . $toolNames . ')',
+                    'title' => $title,
                     'start' => $taskDetail->start_time->toIso8601String(),
                     'end' => $taskDetail->end_time->toIso8601String(),
                     'backgroundColor' => $colors['backgroundColor'],
@@ -94,7 +133,8 @@ class Dashboard extends Component
                     'textColor' => $colors['textColor'],
                     'extendedProps' => [
                         'jobOrderId' => $taskDetail->tire_job_order_id,
-                        'taskId' => $taskDetail->task_id
+                        'taskId' => $taskDetail->task_id,
+                        'status' => $taskDetail->status // Add status here
                     ]
                 ];
                 $taskNumber++;
@@ -113,8 +153,16 @@ class Dashboard extends Component
         $this->dispatch('refreshCalendar');
     }
 
-    private function getEventColor(int $jobOrderId): array
+    private function getEventColor(int $jobOrderId, string $status): array
     {
+        if ($status === 'done') {
+            return [
+                'backgroundColor' => '#d3d3d3', // Light gray for done tasks
+                'borderColor' => '#d3d3d3',
+                'textColor' => '#000000',
+            ];
+        }
+
         // Generate a consistent color based on the job order ID
         $hash = md5((string)$jobOrderId);
         $backgroundColor = '#' . substr($hash, 0, 6);

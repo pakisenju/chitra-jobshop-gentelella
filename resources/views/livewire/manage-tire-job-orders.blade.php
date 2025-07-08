@@ -70,6 +70,59 @@
                                 class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
                                 id="sidewall">
                         </div>
+                        <div>
+                            <label class="block text-sm font-bold mb-2" for="spot">
+                                Spot
+                            </label>
+                            <input wire:model.live="spot" type="number" min="0"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                                id="spot">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold mb-2" for="patch">
+                                Patch
+                            </label>
+                            <input wire:model.live="patch" type="number" min="0"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                                id="patch">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold mb-2" for="area_curing_sw">
+                                Area Curing SW
+                            </label>
+                            <input wire:model.live="area_curing_sw" type="number" min="0"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                                id="area_curing_sw">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold mb-2" for="area_curing_tread">
+                                Area Curing Tread
+                            </label>
+                            <input wire:model.live="area_curing_tread" type="number" min="0"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                                id="area_curing_tread">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold mb-2" for="bead">
+                                Bead
+                            </label>
+                            <input wire:model.live="bead" type="number" min="0"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                                id="bead">
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-bold mb-2" for="chaffer">
+                                Chaffer
+                            </label>
+                            <input wire:model.live="chaffer" type="number" min="0"
+                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
+                                id="chaffer">
+                        </div>
                     </div>
 
                     <div class="flex justify-end space-x-2">
@@ -96,6 +149,12 @@
                     <th class="py-3 px-6 font-semibold text-sm text-left">SN Tire</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Tread</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Sidewall</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Spot</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Patch</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Area Curing SW</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Area Curing Tread</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Bead</th>
+                    <th class="py-3 px-6 font-semibold text-sm text-left">Chaffer</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Tasks</th>
                     <th class="py-3 px-6 font-semibold text-sm text-left">Aksi</th>
                 </tr>
@@ -107,6 +166,12 @@
                         <td class="py-4 px-6">{{ $jobOrder->sn_tire }}</td>
                         <td class="py-4 px-6">{{ $jobOrder->tread }}</td>
                         <td class="py-4 px-6">{{ $jobOrder->sidewall }}</td>
+                        <td class="py-4 px-6">{{ $jobOrder->spot }}</td>
+                        <td class="py-4 px-6">{{ $jobOrder->patch }}</td>
+                        <td class="py-4 px-6">{{ $jobOrder->area_curing_sw }}</td>
+                        <td class="py-4 px-6">{{ $jobOrder->area_curing_tread }}</td>
+                        <td class="py-4 px-6">{{ $jobOrder->bead }}</td>
+                        <td class="py-4 px-6">{{ $jobOrder->chaffer }}</td>
                         <td class="py-4 px-6">
                             @php
                                 $scheduledCount = $jobOrder->tireJobOrderTaskDetails->where('status', 'scheduled')->count();

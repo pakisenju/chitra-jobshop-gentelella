@@ -15,22 +15,70 @@ class ScheduleTasks extends Command
      *
      * @var string
      */
-    protected $signature = 'schedule:tasks';
+    protected $signature = 'schedule:tasks {--shift= : The shift to schedule tasks for (pagi or malam)}';
 
     /**
      * The console command description.
      *
      * @var string
      */
-    protected $description = 'Schedules pending tasks based on tool availability.';
+    protected $description = 'Schedules pending tasks based on tool availability and selected shift.';
 
     /**
      * Execute the console command.
      */
     public function handle()
     {
-        // 1. Reset all scheduled tasks to pending and clear start_time, end_time
+        $shift = $this->option('shift');
+        $now = Carbon::now();
+        $schedulingStartTime = $now->copy(); // Default to now
+
+        $now = Carbon::now();
+        $schedulingStartTime = null;
+
+        if ($shift === 'pagi') {
+            $todayPagiStart = $now->copy()->startOfDay()->setHour(8);
+            $todayPagiEnd = $now->copy()->startOfDay()->setHour(17);
+
+            if ($now->lessThan($todayPagiStart)) {
+                // Before 8 AM today, start at 8 AM today
+                $schedulingStartTime = $todayPagiStart;
+            } elseif ($now->greaterThanOrEqualTo($todayPagiStart) && $now->lessThanOrEqualTo($todayPagiEnd)) {
+                // Within 8 AM - 5 PM today, start at 8 AM today
+                $schedulingStartTime = $todayPagiStart;
+            } else {
+                // After 5 PM today
+                $todayMalamStart = $now->copy()->startOfDay()->setHour(20);
+                // Check if it's before 8 PM today, if so, start at 8 PM today (malam shift)
+                if ($now->lessThan($todayMalamStart)) {
+                    $schedulingStartTime = $todayMalamStart;
+                } else {
+                    // After 8 PM today, start at 8 AM tomorrow
+                    $schedulingStartTime = $todayPagiStart->addDay();
+                }
+            }
+        } elseif ($shift === 'malam') {
+            $todayMalamStart = $now->copy()->startOfDay()->setHour(20);
+            $tomorrowMalamEnd = $now->copy()->startOfDay()->addDay()->setHour(5);
+
+            if ($now->lessThan($todayMalamStart) && $now->greaterThanOrEqualTo($tomorrowMalamEnd->copy()->subDay())) {
+                // Between 5 AM today and 8 PM today, start at 8 PM today
+                $schedulingStartTime = $todayMalamStart;
+            } elseif ($now->greaterThanOrEqualTo($todayMalamStart)) {
+                // After 8 PM today, start at 8 PM today
+                $schedulingStartTime = $todayMalamStart;
+            } else {
+                // After 5 AM tomorrow, start at 8 PM tomorrow
+                $schedulingStartTime = $todayMalamStart->addDay();
+            }
+        } else {
+            $this->error('Invalid shift specified. Use --shift=pagi or --shift=malam.');
+            return Command::FAILURE;
+        }
+
+        // 1. Reset all scheduled tasks (that are not 'done') to pending and clear start_time, end_time
         TireJobOrderTaskDetail::where('status', 'scheduled')
+            ->where('total_duration_calculated', '>', 0) // Only reset tasks that actually have a duration
             ->update([
                 'start_time' => null,
                 'end_time' => null,
@@ -38,11 +86,15 @@ class ScheduleTasks extends Command
             ]);
 
         // 2. Initialize toolAvailability: Tracks when each specific tool instance becomes free
-        $toolAvailability = $this->initializeToolAvailability();
+        //    Tools become available from the scheduling start time.
+        $toolAvailability = $this->initializeToolAvailability($schedulingStartTime);
 
-        // 3. Get all pending tasks
+        // 3. Get all pending tasks (including those just reset from 'scheduled')
         $allPendingTasks = TireJobOrderTaskDetail::where('status', 'pending')
+            ->where('total_duration_calculated', '>', 0) // Only consider tasks that have a duration
             ->with(['task.tools', 'tireJobOrder'])
+            ->orderBy('tire_job_order_id')
+            ->orderBy('order')
             ->get();
 
         // 4. Track jobOrderLastEndTime: end time of the last scheduled task for each job order
@@ -51,7 +103,7 @@ class ScheduleTasks extends Command
         $scheduledCount = 0;
         $maxIterations = count($allPendingTasks) * 2; // Safety break to prevent infinite loops
 
-        DB::transaction(function () use (&$allPendingTasks, &$toolAvailability, &$jobOrderLastEndTime, &$scheduledCount, $maxIterations) {
+        DB::transaction(function () use (&$allPendingTasks, &$toolAvailability, &$jobOrderLastEndTime, &$scheduledCount, $maxIterations, $schedulingStartTime, $shift) {
             for ($i = 0; $i < $maxIterations && $allPendingTasks->count() > 0; $i++) {
                 $bestCandidate = null;
                 $bestCandidateStartTime = null;
@@ -63,8 +115,8 @@ class ScheduleTasks extends Command
                     $requiredTools = $task->tools;
                     $taskDuration = $taskDetail->total_duration_calculated;
 
-                    // Determine earliestConsideredStart for this task (respecting previous tasks in same job order)
-                    $earliestConsideredStart = Carbon::now();
+                    // Determine earliestConsideredStart for this task (respecting previous tasks in same job order and the overall scheduling start time)
+                    $earliestConsideredStart = $schedulingStartTime->copy();
                     if (isset($jobOrderLastEndTime[$taskDetail->tire_job_order_id])) {
                         $earliestConsideredStart = $earliestConsideredStart->max($jobOrderLastEndTime[$taskDetail->tire_job_order_id]);
                     }
@@ -87,7 +139,8 @@ class ScheduleTasks extends Command
                             $requiredTools,
                             $tempToolAvailability, // Use deep copy for checking
                             $taskDuration,
-                            $earliestConsideredStart
+                            $earliestConsideredStart,
+                            $shift // Pass the shift here
                         );
                     }
 
@@ -116,7 +169,8 @@ class ScheduleTasks extends Command
                             $requiredTools,
                             $toolAvailability, // Pass actual $toolAvailability by reference to update
                             $taskDuration,
-                            $startTime // Pass the confirmed start time
+                            $startTime, // Pass the confirmed start time
+                            $shift // Pass the shift here
                         );
                     }
 
@@ -151,16 +205,17 @@ class ScheduleTasks extends Command
      * Each tool instance is tracked by its name, and its value is the Carbon timestamp
      * when that specific instance becomes free.
      *
+     * @param Carbon $initialAvailabilityTime The time from which tools are initially available.
      * @return array
      */
-    protected function initializeToolAvailability(): array
+    protected function initializeToolAvailability(Carbon $initialAvailabilityTime): array
     {
         $tools = Tool::all();
         $availability = [];
         foreach ($tools as $tool) {
-            // Each instance of a tool starts as free now
+            // Each instance of a tool starts as free from the initialAvailabilityTime
             for ($i = 0; $i < $tool->quantity; $i++) {
-                $availability[$tool->name][] = Carbon::now();
+                $availability[$tool->name][] = $initialAvailabilityTime->copy();
             }
         }
         return $availability;
@@ -179,13 +234,121 @@ class ScheduleTasks extends Command
         $requiredTools,
         &$toolAvailability, // Passed by reference to update it
         $taskDuration,
-        $earliestConsideredStart
+        $earliestConsideredStart,
+        string $shift // Added shift parameter
     ): ?Carbon {
         $currentSearchTime = $earliestConsideredStart->copy();
         $maxSearchMinutes = 7 * 24 * 60; // Search up to 7 days in minutes to prevent infinite loops
         $searchLimit = Carbon::now()->addMinutes($maxSearchMinutes);
 
+        // Define shift boundaries
+        $shiftStartHour = 0;
+        $shiftEndHour = 0;
+        if ($shift === 'pagi') {
+            $shiftStartHour = 8;
+            $shiftEndHour = 17;
+        } elseif ($shift === 'malam') {
+            $shiftStartHour = 20;
+            $shiftEndHour = 5; // Represents 05:00 AM next day
+        }
+
         while ($currentSearchTime->lessThan($searchLimit)) {
+            // Adjust currentSearchTime to be within shift boundaries
+            $currentHour = $currentSearchTime->hour;
+            $currentMinute = $currentSearchTime->minute;
+
+            if ($shift === 'pagi') {
+                $pagiShiftStart = $currentSearchTime->copy()->setHour(8)->setMinute(0)->setSecond(0);
+                $pagiShiftEnd = $currentSearchTime->copy()->setHour(17)->setMinute(0)->setSecond(0);
+                $malamShiftStart = $currentSearchTime->copy()->setHour(20)->setMinute(0)->setSecond(0);
+
+                if ($currentSearchTime->lessThan($pagiShiftStart)) {
+                    // Before 8 AM, move to 8 AM today
+                    $currentSearchTime = $pagiShiftStart;
+                    continue;
+                } elseif ($currentSearchTime->greaterThanOrEqualTo($pagiShiftEnd) && $currentSearchTime->lessThan($malamShiftStart)) {
+                    // After 5 PM but before 8 PM, move to 8 PM today (malam shift)
+                    $currentSearchTime = $malamShiftStart;
+                    continue;
+                } elseif ($currentSearchTime->greaterThanOrEqualTo($malamShiftStart)) {
+                    // After 8 PM, move to 8 AM tomorrow
+                    $currentSearchTime->addDay()->setHour(8)->setMinute(0)->setSecond(0);
+                    continue;
+                }
+            } elseif ($shift === 'malam') {
+                $malamShiftStartToday = $currentSearchTime->copy()->setHour(20)->setMinute(0)->setSecond(0);
+                $malamShiftEndNextDay = $currentSearchTime->copy()->addDay()->setHour(5)->setMinute(0)->setSecond(0);
+
+                // If current time is between 5 AM and 8 PM today (outside malam shift)
+                if ($currentSearchTime->greaterThanOrEqualTo($malamShiftEndNextDay->copy()->subDay()) && $currentSearchTime->lessThan($malamShiftStartToday)) {
+                    $currentSearchTime = $malamShiftStartToday;
+                    continue;
+                }
+                // If current time is after 5 AM next day (and not yet 8 PM today)
+                elseif ($currentSearchTime->greaterThanOrEqualTo($malamShiftEndNextDay)) {
+                    $currentSearchTime = $malamShiftStartToday->addDay(); // Move to 8 PM next day
+                    continue;
+                }
+            }
+
+            // NEW LOGIC: Check for breaks/rest times
+            $adjustedForBreak = false;
+            $breaks = [];
+            if ($shift === 'pagi') {
+                $breaks = [
+                    // Coffee Break 1: 10:00 - 10:15
+                    ['start' => $currentSearchTime->copy()->setHour(10)->setMinute(0)->setSecond(0),
+                     'end' => $currentSearchTime->copy()->setHour(10)->setMinute(15)->setSecond(0)],
+                    // Rest Time: 12:00 - 13:00
+                    ['start' => $currentSearchTime->copy()->setHour(12)->setMinute(0)->setSecond(0),
+                     'end' => $currentSearchTime->copy()->setHour(13)->setMinute(0)->setSecond(0)],
+                    // Coffee Break 2: 15:00 - 15:15
+                    ['start' => $currentSearchTime->copy()->setHour(15)->setMinute(0)->setSecond(0),
+                     'end' => $currentSearchTime->copy()->setHour(15)->setMinute(15)->setSecond(0)],
+                ];
+            } elseif ($shift === 'malam') {
+                $nightShiftDay = $currentSearchTime->copy();
+                // Adjust nightShiftDay to be the day the night shift *started*
+                if ($currentSearchTime->hour < 20 && $currentSearchTime->hour >= 0 && $currentSearchTime->hour < 5) { // If currentSearchTime is in the morning part of night shift (00:00-05:00)
+                    $nightShiftDay->subDay(); // The night shift started on the previous day
+                }
+
+                $breaks = [
+                    // Coffee Break 1: 22:00 - 22:15
+                    ['start' => $nightShiftDay->copy()->setHour(22)->setMinute(0)->setSecond(0),
+                     'end' => $nightShiftDay->copy()->setHour(22)->setMinute(15)->setSecond(0)],
+                    // Rest Time: 00:00 - 01:00 (next day relative to nightShiftDay)
+                    ['start' => $nightShiftDay->copy()->addDay()->startOfDay(), // 00:00 next day
+                     'end' => $nightShiftDay->copy()->addDay()->setHour(1)->setMinute(0)->setSecond(0)],
+                    // Coffee Break 2: 03:00 - 03:15 (next day relative to nightShiftDay)
+                    ['start' => $nightShiftDay->copy()->addDay()->setHour(3)->setMinute(0)->setSecond(0),
+                     'end' => $nightShiftDay->copy()->addDay()->setHour(3)->setMinute(15)->setSecond(0)],
+                ];
+            }
+
+            foreach ($breaks as $break) {
+                $breakStart = $break['start'];
+                $breakEnd = $break['end'];
+
+                // If currentSearchTime is within a break, move it past the break
+                if ($currentSearchTime->greaterThanOrEqualTo($breakStart) && $currentSearchTime->lessThan($breakEnd)) {
+                    $currentSearchTime = $breakEnd->copy();
+                    $adjustedForBreak = true;
+                    break; // Re-evaluate from the new currentSearchTime
+                }
+
+                // If a task starting at currentSearchTime would end within or after a break
+                $potentialEndTime = $currentSearchTime->copy()->addMinutes($taskDuration);
+                if ($potentialEndTime->greaterThan($breakStart) && $currentSearchTime->lessThan($breakEnd)) {
+                    $currentSearchTime = $breakEnd->copy();
+                    $adjustedForBreak = true;
+                    break; // Re-evaluate from the new currentSearchTime
+                }
+            }
+
+            if ($adjustedForBreak) {
+                continue; // Go to the next iteration of the while loop with the adjusted currentSearchTime
+            }
             $canScheduleAtCurrentTime = true;
             $chosenToolInstances = []; // To store which specific instance of each tool is chosen for this potential start time
 
@@ -217,12 +380,51 @@ class ScheduleTasks extends Command
 
             if ($canScheduleAtCurrentTime) {
                 // All required tools have an available instance that can start at $currentSearchTime.
-                // Update the availability of the chosen instances for this task.
-                foreach ($requiredTools as $tool) {
-                    $instanceKey = $chosenToolInstances[$tool->name];
-                    $toolAvailability[$tool->name][$instanceKey] = $currentSearchTime->copy()->addMinutes($taskDuration);
+                // Check if the task duration fits within the current shift segment
+                $potentialEndTime = $currentSearchTime->copy()->addMinutes($taskDuration);
+                $fitsInShift = false;
+
+                if ($shift === 'pagi') {
+                    $shiftEndToday = $currentSearchTime->copy()->setHour(17)->setMinute(0)->setSecond(0);
+                    if ($potentialEndTime->lessThanOrEqualTo($shiftEndToday)) {
+                        $fitsInShift = true;
+                    }
+                } elseif ($shift === 'malam') {
+                    $shiftStartToday = $currentSearchTime->copy()->setHour(20)->setMinute(0)->setSecond(0);
+                    $shiftEndNextDay = $currentSearchTime->copy()->addDay()->setHour(5)->setMinute(0)->setSecond(0);
+
+                    if ($currentSearchTime->greaterThanOrEqualTo($shiftStartToday)) {
+                        // Task starts in the evening part of the night shift
+                        if ($potentialEndTime->lessThanOrEqualTo($shiftEndNextDay)) {
+                            $fitsInShift = true;
+                        }
+                    } else {
+                        // Task starts in the morning part of the night shift (after midnight)
+                        if ($potentialEndTime->lessThanOrEqualTo($shiftEndNextDay)) {
+                            $fitsInShift = true;
+                        }
+                    }
                 }
-                return $currentSearchTime; // Found a valid start time
+
+                if ($fitsInShift) {
+                    // Update the availability of the chosen instances for this task.
+                    foreach ($requiredTools as $tool) {
+                        $instanceKey = $chosenToolInstances[$tool->name];
+                        $toolAvailability[$tool->name][$instanceKey] = $potentialEndTime;
+                    }
+                    return $currentSearchTime; // Found a valid start time
+                } else {
+                    // Task does not fit within the current shift segment.
+                    // Advance currentSearchTime to the start of the next logical shift.
+                    if ($shift === 'pagi') {
+                        // If it's pagi shift, and task doesn't fit, move to malam shift today (20:00)
+                        $currentSearchTime->setHour(20)->setMinute(0)->setSecond(0);
+                    } elseif ($shift === 'malam') {
+                        // If it's malam shift, and task doesn't fit, move to pagi shift next day (08:00)
+                        $currentSearchTime->addDay()->setHour(8)->setMinute(0)->setSecond(0);
+                    }
+                    continue; // Re-evaluate with new currentSearchTime
+                }
             }
 
             // If not all tools are available at $currentSearchTime, find the next relevant time to check.

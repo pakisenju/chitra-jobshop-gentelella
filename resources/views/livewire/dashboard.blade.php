@@ -54,9 +54,40 @@
                 @else
                     <p class="mt-2 text-sm text-gray-500 dark:text-gray-300">Detail task tidak ditemukan.</p>
                 @endif
-                <div class="mt-4 flex justify-end">
+                <div class="mt-4 flex justify-end space-x-2">
+                    @if ($selectedTaskDetail && $selectedTaskDetail->status !== 'done')
+                        <button wire:click="markTaskAsDone({{ $selectedTaskDetail->tire_job_order_id }}, {{ $selectedTaskDetail->task_id }})" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">
+                            Mark as Done
+                        </button>
+                    @endif
                     <button wire:click="closeTaskDetailModal" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
                         Tutup
+                    </button>
+                </div>
+            </div>
+        </div>
+    @endif
+
+    <!-- Shift Selection Modal -->
+    @if ($showShiftSelectionModal)
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full flex items-center justify-center z-50">
+            <div class="relative p-5 border w-96 shadow-lg rounded-md bg-white dark:bg-zinc-800">
+                <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white mb-4">Pilih Shift</h3>
+                <div class="mt-2 text-sm text-gray-500 dark:text-gray-300">
+                    <label for="shift_select" class="block text-sm font-medium text-gray-700 dark:text-gray-300">Shift:</label>
+                    <select wire:model="selectedShift" id="shift_select" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md dark:bg-zinc-700 dark:border-zinc-600 dark:text-white">
+                        <option value="">Pilih Shift</option>
+                        <option value="pagi">Pagi (08:00 - 17:00)</option>
+                        <option value="malam">Malam (20:00 - 05:00)</option>
+                    </select>
+                    @error('selectedShift') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                </div>
+                <div class="mt-4 flex justify-end space-x-2">
+                    <button wire:click="closeShiftSelectionModal" class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded">
+                        Batal
+                    </button>
+                    <button wire:click="startScheduling" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
+                        Mulai Penjadwalan
                     </button>
                 </div>
             </div>
@@ -90,8 +121,8 @@
                         center: 'title',
                         right: 'dayGridMonth,timeGridWeek,timeGridDay'
                     },
-                    slotMinTime: '06:00:00',
-                    slotMaxTime: '22:00:00',
+                    slotMinTime: '00:00:00',
+                    slotMaxTime: '23:59:00',
                     slotDuration: '00:05:00',
                     slotLabelInterval: {
                         minutes: 5

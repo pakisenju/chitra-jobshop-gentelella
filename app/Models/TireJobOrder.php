@@ -9,7 +9,7 @@ class TireJobOrder extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['sn_tire', 'tread', 'sidewall', 'customer_id'];
+    protected $fillable = ['sn_tire', 'tread', 'sidewall', 'spot', 'patch', 'area_curing_sw', 'area_curing_tread', 'bead', 'chaffer', 'customer_id'];
 
     public function tireJobOrderTaskDetails()
     {
