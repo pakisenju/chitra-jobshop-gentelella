@@ -176,7 +176,7 @@
                             @php
                                 $scheduledCount = $jobOrder->tireJobOrderTaskDetails->where('status', 'scheduled')->count();
                                 $doneCount = $jobOrder->tireJobOrderTaskDetails->where('status', 'done')->count();
-                                $totalTasks = $jobOrder->tireJobOrderTaskDetails->count();
+                                $totalTasks = $jobOrder->tireJobOrderTaskDetails->where('start_time', '!=', null)->count();
                             @endphp
                             Scheduled: {{ $scheduledCount }} / {{ $totalTasks }}<br>
                             Done: {{ $doneCount }} / {{ $totalTasks }}

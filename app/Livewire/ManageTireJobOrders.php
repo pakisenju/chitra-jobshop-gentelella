@@ -11,14 +11,14 @@ use App\Models\Customer;
 class ManageTireJobOrders extends Component
 {
     public $sn_tire;
-    public $tread;
-    public $sidewall;
-    public $spot;
-    public $patch;
-    public $area_curing_sw;
-    public $area_curing_tread;
-    public $bead;
-    public $chaffer;
+    public $tread = 0;
+    public $sidewall = 0;
+    public $spot = 0;
+    public $patch = 0;
+    public $area_curing_sw = 0;
+    public $area_curing_tread = 0;
+    public $bead = 0;
+    public $chaffer = 0;
     public $customer_id;
     public $jobOrderId;
     public $isOpen = false;
@@ -51,6 +51,16 @@ class ManageTireJobOrders extends Component
     public function create()
     {
         $this->resetInputFields();
+
+        $this->tread = 0;
+        $this->sidewall = 0;
+        $this->spot = 0;
+        $this->patch = 0;
+        $this->area_curing_sw = 0;
+        $this->area_curing_tread = 0;
+        $this->bead = 0;
+        $this->chaffer = 0;
+
         $this->openModal();
     }
 
@@ -102,9 +112,9 @@ class ManageTireJobOrders extends Component
             'tread' => ['skiving tread', 'buffing tread', 'cementing 1 tread', 'cementing 2 tread', 'builtup tread'],
             'sidewall' => ['skiving sidewall', 'buffing sidewall', 'cementing 1 sidewall', 'cementing 2 sidewall', 'builtup sidewall', 'finishing sidewall'],
             'spot' => ['skiving spot', 'buffing spot', 'cementing 1 spot', 'cementing 2 spot', 'builtup spot', 'finishing spot'],
-            'patch' => ['install patch', 'curing patch'],
-            'area_curing_sw' => ['curing sidewall'],
-            'area_curing_tread' => ['curing tread'],
+            'patch' => ['prepare curing patch', 'install patch', 'curing patch'],
+            'area_curing_sw' => ['prepare curing sidewall', 'curing sidewall'],
+            'area_curing_tread' => ['prepare curing tread', 'curing tread'],
             'bead' => ['skiving bead', 'buffing bead', 'cementing 1 bead', 'cementing 2 bead', 'builtup bead', 'curing bead', 'finishing bead'],
             'chaffer' => ['skiving chaffer', 'buffing chaffer', 'cementing 1 chaffer', 'cementing 2 chaffer', 'builtup chaffer', 'curing chaffer', 'finishing chaffer'],
         ];
@@ -140,9 +150,11 @@ class ManageTireJobOrders extends Component
             'builtup bead',
             'install patch',
             'builtup chaffer',
-            'prepare curing',
+            'prepare curing sidewall',
             'curing sidewall',
+            'prepare curing tread',
             'curing tread',
+            'prepare curing patch',
             'curing patch',
             'curing bead',
             'curing chaffer',
@@ -179,7 +191,20 @@ class ManageTireJobOrders extends Component
                 $qtyCalculated = 1;
             }
 
+            // skip task if qty is 0
+            if ($qtyCalculated === 0) {
+                continue;
+            }
+
             $totalDurationCalculated = $task->duration * $qtyCalculated;
+
+            $orderIndex = $taskOrderMap[$taskNameLower] ?? 999;
+
+            // Tambahan logika agar prepare curing selalu tepat sebelum curing
+            if (str_starts_with($taskNameLower, 'prepare curing')) {
+                $nextCuring = str_replace('prepare ', '', $taskNameLower);
+                $orderIndex = $taskOrderMap[$nextCuring] - 1; // tepat sebelum curing
+            }
 
             TireJobOrderTaskDetail::updateOrCreate(
                 [
@@ -190,7 +215,7 @@ class ManageTireJobOrders extends Component
                     'qty_calculated' => $qtyCalculated,
                     'total_duration_calculated' => $totalDurationCalculated,
                     'status' => 'pending',
-                    'order' => $taskOrderMap[$taskNameLower] ?? 999 // Assign order, default to high number if not found
+                    'order' => $orderIndex
                 ]
             );
         }

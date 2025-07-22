@@ -9,6 +9,9 @@ use App\Models\Task;
 use App\Models\TireJobOrder;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\File;
 
 class Dashboard extends Component
 {
@@ -21,9 +24,12 @@ class Dashboard extends Component
     public $selectedToolId = '';
     public $showShiftSelectionModal = false;
     public $selectedShift = '';
+    public $showScheduleModal = false;
+    public $selectedDate;
+    public $scheduleData = [];
 
 
-    protected $listeners = ['showTaskDetail', 'refreshCalendar'];
+    protected $listeners = ['showTaskDetail', 'refreshCalendar', 'dateClicked'];
 
     public function mount()
     {
@@ -55,6 +61,103 @@ class Dashboard extends Component
     {
         $this->showShiftSelectionModal = false;
         $this->selectedShift = '';
+    }
+
+    public function dateClicked($date)
+    {
+        $this->selectedDate = $date;
+        $this->loadScheduleData();
+        $this->showScheduleModal = true;
+    }
+
+    public function closeScheduleModal()
+    {
+        $this->showScheduleModal = false;
+        $this->selectedDate = null;
+        $this->scheduleData = [];
+    }
+
+    public function loadScheduleData()
+    {
+        if (!$this->selectedDate) {
+            return;
+        }
+
+        $date = Carbon::parse($this->selectedDate);
+
+        // Morning Shift
+        $startPagi = $date->copy()->setTime(8, 0, 0);
+        $endPagi = $date->copy()->setTime(17, 0, 0);
+        $this->scheduleData['pagi'] = TireJobOrderTaskDetail::with(['task.tools', 'tireJobOrder'])
+            ->whereIn('status', ['scheduled', 'done'])
+            ->whereBetween('start_time', [$startPagi, $endPagi])
+            ->orderBy('start_time')->get();
+
+        // Night Shift
+        $startMalam = $date->copy()->setTime(20, 0, 0);
+        $endMalam = $date->copy()->addDay()->setTime(5, 0, 0);
+        $this->scheduleData['malam'] = TireJobOrderTaskDetail::with(['task.tools', 'tireJobOrder'])
+            ->whereIn('status', ['scheduled', 'done'])
+            ->whereBetween('start_time', [$startMalam, $endMalam])
+            ->orderBy('start_time')->get();
+    }
+
+    public function exportSchedule($shift)
+    {
+        if (!isset($this->scheduleData[$shift])) {
+            return;
+        }
+
+        $tasks = $this->scheduleData[$shift];
+        $date = Carbon::parse($this->selectedDate);
+        $fileName = 'schedule_' . $date->format('Y-m-d') . '_' . $shift . '.csv';
+        $filePath = 'exports/' . $fileName;
+
+        // Using a temporary stream to build CSV content
+        $handle = fopen('php://temp', 'r+');
+
+        // Add headers
+        fputcsv($handle, ['Job Order SN', 'Task Name', 'Tools', 'Start Time', 'End Time', 'Status']);
+
+        // Add data
+        foreach ($tasks as $task) {
+            fputcsv($handle, [
+                $task->tireJobOrder->sn_tire,
+                $task->task->name,
+                $task->task->tools->pluck('name')->implode(', '),
+                $task->start_time ? $task->start_time->format('Y-m-d H:i') : 'N/A',
+                $task->end_time ? $task->end_time->format('Y-m-d H:i') : 'N/A',
+                $task->status,
+            ]);
+        }
+
+        rewind($handle);
+        $csvContent = stream_get_contents($handle);
+        fclose($handle);
+
+        Storage::disk('local')->put($filePath, $csvContent);
+
+        return Storage::disk('local')->download($filePath, $fileName);
+    }
+
+    public function exportPdf($shift)
+    {
+        if (!isset($this->scheduleData[$shift])) {
+            return;
+        }
+
+        $tasks = $this->scheduleData[$shift];
+        $date = Carbon::parse($this->selectedDate)->format('Y-m-d');
+
+        $pdf = Pdf::loadView('pdf.schedule', [
+            'tasks' => $tasks,
+            'date' => $date,
+            'shift' => $shift,
+        ]);
+
+        return response()->streamDownload(function () use ($pdf) {
+            echo $pdf->stream();
+        }, 'schedule_' . $date . '_' . $shift . '.pdf');
     }
 
     public function markTaskAsDone($jobOrderId, $taskId)

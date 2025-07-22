@@ -10,11 +10,12 @@ class ToolSeeder extends Seeder
     public function run()
     {
         $tools = [
-            ['name' => 'airbuffing high', 'quantity' => 1],
-            ['name' => 'airbuffing low', 'quantity' => 1],
-            ['name' => 'extruder', 'quantity' => 1],
-            ['name' => 'monar', 'quantity' => 1],
-            ['name' => 'none', 'quantity' => 999]
+            ['name' => 'Airbuffing High', 'quantity' => 1],
+            ['name' => 'Airbuffing Low', 'quantity' => 1],
+            ['name' => 'Extruder', 'quantity' => 1],
+            ['name' => 'Monar', 'quantity' => 1],
+            ['name' => 'Lampu', 'quantity' => 1],
+            ['name' => 'None', 'quantity' => 999]
         ];
 
         foreach ($tools as $tool) {

@@ -93,21 +93,101 @@
             </div>
         </div>
     @endif
+
+    <!-- Schedule Detail Modal -->
+    @if ($showScheduleModal)
+        <div class="fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full flex items-center justify-center z-50" x-data="{ openAccordion: '' }">
+            <div class="relative p-5 border w-full max-w-4xl shadow-lg rounded-md bg-white dark:bg-zinc-800 flex flex-col" style="max-height: 90vh;">
+                <div class="flex-shrink-0">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="text-lg leading-6 font-medium text-gray-900 dark:text-white">Jadwal untuk {{ $selectedDate }}</h3>
+                        <button wire:click="closeScheduleModal" class="text-gray-400 hover:text-gray-500">
+                            <span class="sr-only">Close</span>
+                            <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Accordion for Shifts -->
+                <div class="flex-grow overflow-y-auto pr-2">
+                    <div class="space-y-2">
+                        @foreach ($scheduleData as $shift => $tasks)
+                            <div class="border rounded-md">
+                                <div @click="openAccordion = openAccordion === '{{ $shift }}' ? '' : '{{ $shift }}'" class="cursor-pointer p-4 flex justify-between items-center">
+                                    <h4 class="font-semibold text-gray-800 dark:text-gray-200">{{ ucfirst($shift) }} Shift ({{ count($tasks) }} tasks)</h4>
+                                    <div class="flex items-center space-x-2">
+                                        <button wire:click.stop="exportSchedule('{{ $shift }}')" class="bg-green-500 hover:bg-green-700 text-white font-bold py-1 px-3 rounded text-xs">
+                                            Export Excel
+                                        </button>
+                                        <button wire:click.stop="exportPdf('{{ $shift }}')" class="bg-red-500 hover:bg-red-700 text-white font-bold py-1 px-3 rounded text-xs">
+                                            Export PDF
+                                        </button>
+                                        <span :class="{ 'transform rotate-180': openAccordion === '{{ $shift }}' }">▼</span>
+                                    </div>
+                                </div>
+                                <div x-show="openAccordion === '{{ $shift }}'" class="p-4 border-t">
+                                    @if (count($tasks) > 0)
+                                        <div class="overflow-x-auto">
+                                            <table class="min-w-full divide-y divide-gray-200">
+                                                <thead class="bg-gray-50 dark:bg-zinc-700">
+                                                    <tr>
+                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Job Order SN</th>
+                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Task</th>
+                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tools</th>
+                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Start</th>
+                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">End</th>
+                                                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody class="bg-white divide-y divide-gray-200 dark:bg-zinc-800">
+                                                    @foreach ($tasks as $task)
+                                                        <tr>
+                                                            <td class="px-6 py-4 whitespace-nowrap">{{ $task->tireJobOrder->sn_tire }}</td>
+                                                            <td class="px-6 py-4 whitespace-nowrap">{{ $task->task->name }}</td>
+                                                            <td class="px-6 py-4 whitespace-nowrap">{{ $task->task->tools->pluck('name')->implode(', ') }}</td>
+                                                            <td class="px-6 py-4 whitespace-nowrap">{{ $task->start_time ? $task->start_time->format('H:i') : 'N/A' }}</td>
+                                                            <td class="px-6 py-4 whitespace-nowrap">{{ $task->end_time ? $task->end_time->format('H:i') : 'N/A' }}</td>
+                                                            <td class="px-6 py-4 whitespace-nowrap">{{ $task->status }}</td>
+                                                        </tr>
+                                                    @endforeach
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    @else
+                                        <p>No tasks scheduled for this shift.</p>
+                                    @endif
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+                </div>
+            </div>
+        </div>
+    @endif
 </div>
 
 @push('scripts')
     <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <style>
+        /* Styling untuk time indicator */
+        .fc-timegrid-now-indicator-line {
+            border-color: #5db6e4 !important;
+            border-width: 2px !important;
+        }
+        .fc-timegrid-now-indicator-arrow {
+            border-color: #5db6e4 !important;
+            border-width: 5px !important;
+        }
+    </style>
     <script>
-        // Wrap in a function to avoid polluting global scope and to manage state
         (function() {
-            // Use a property on the window object to hold the calendar instance.
-            // This prevents re-declaration errors during Livewire page swaps.
             window.dashboardCalendar = window.dashboardCalendar || null;
 
             const initializeDashboardCalendar = () => {
                 const calendarEl = document.getElementById('calendar');
 
-                // Only initialize if the element exists and there's no active calendar instance.
                 if (!calendarEl || window.dashboardCalendar) {
                     return;
                 }
@@ -115,7 +195,7 @@
                 console.log('Initializing FullCalendar for dashboard...');
 
                 window.dashboardCalendar = new FullCalendar.Calendar(calendarEl, {
-                    initialView: 'timeGridWeek',
+                    initialView: 'dayGridMonth',
                     headerToolbar: {
                         left: 'prev,next today',
                         center: 'title',
@@ -132,6 +212,20 @@
                         minute: '2-digit',
                         hour12: false
                     },
+                    dayMaxEventRows: false, // Show all events in a day cell
+                    dayMaxEvents: false, // Show all events in a day cell
+                    eventContent: function(arg) {
+                        let event = arg.event;
+                        // Basic event display: title and time (if not all-day)
+                        let content = `<div class="fc-event-main">${event.title}</div>`;
+                        return { html: content };
+                    },
+                    eventDidMount: function(arg) {
+                        // Apply custom styling to events
+                        arg.el.style.whiteSpace = 'normal'; // Allow text to wrap
+                    },
+                    nowIndicator: true, // Menambahkan time indicator
+                    scrollTime: new Date().toTimeString().slice(0, 8), // Scroll ke waktu sekarang
                     events: (fetchInfo, successCallback, failureCallback) => {
                         const componentEl = calendarEl.closest('[wire\\:id]');
                         if (componentEl) {
@@ -148,7 +242,18 @@
                             jobOrderId: info.event.extendedProps.jobOrderId,
                             taskId: info.event.extendedProps.taskId
                         });
-                    }
+                    },
+                    dateClick: function(info) {
+                        Livewire.dispatch('dateClicked', [info.dateStr]);
+                    },
+                    viewDidMount: function(viewInfo) {
+                        if (viewInfo.view.type === 'dayGridMonth') {
+                            // Adjust cell rendering in month view (example: add padding)
+                            let dayCells = viewInfo.el.querySelectorAll('.fc-daygrid-day');
+                            dayCells.forEach(cell => cell.style.padding = '5px');
+                        }
+                    },
+
                 });
 
                 window.dashboardCalendar.render();
