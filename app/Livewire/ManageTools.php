@@ -15,6 +15,7 @@ class ManageTools extends Component
     public $quantity;
     public $toolId;
     public $isOpen = false;
+    public $toolToDeleteId = null;
 
     public function render()
     {
@@ -34,11 +35,13 @@ class ManageTools extends Component
     public function openModal()
     {
         $this->isOpen = true;
+        $this->dispatch('showToolModal');
     }
 
     public function closeModal()
     {
         $this->isOpen = false;
+        $this->dispatch('hideToolModal');
     }
 
     public function resetInputFields()
@@ -46,6 +49,7 @@ class ManageTools extends Component
         $this->name = '';
         $this->quantity = 1;
         $this->toolId = '';
+        $this->toolToDeleteId = null;
     }
 
     public function store()
@@ -80,9 +84,25 @@ class ManageTools extends Component
         $this->openModal();
     }
 
-    public function delete($id)
+    public function prepareDelete($id)
     {
-        Tool::find($id)->delete();
-        session()->flash('message', 'Tool berhasil dihapus.');
+        $this->toolToDeleteId = $id;
+        $this->dispatch('showDeleteConfirmationModal');
+    }
+
+    public function confirmDelete()
+    {
+        if ($this->toolToDeleteId) {
+            Tool::find($this->toolToDeleteId)->delete();
+            session()->flash('message', 'Tool berhasil dihapus.');
+            $this->dispatch('hideDeleteConfirmationModal');
+            $this->resetInputFields();
+        }
+    }
+
+    public function cancelDelete()
+    {
+        $this->toolToDeleteId = null;
+        $this->dispatch('hideDeleteConfirmationModal');
     }
 }

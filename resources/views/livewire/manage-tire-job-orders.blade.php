@@ -1,198 +1,219 @@
-<?php
-    $isOpen = $isOpen ?? false;
-?>
-<div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">Manage Tire Job Orders</h1>
-        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
-            Tambah Job Order
-        </button>
+
+<div>
+    <div class="page-title">
+        <div class="title_left">
+            <h3>Manage Tire Job Orders</h3>
+        </div>
     </div>
 
-    @if (session()->has('message'))
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <span class="block sm:inline">{{ session('message') }}</span>
-        </div>
-    @endif
+    <div class="clearfix"></div>
 
-    <!-- Modal Form -->
-    @if ($isOpen)
-        <div class="fixed inset-0 bg-[#FDFDFC] dark:bg-[#0a0a0a] flex items-center justify-center" wire:ignore.self>
-            <div class="rounded-lg p-6 w-full max-w-4xl">
-                <h2 class="text-xl font-semibold mb-4">{{ $jobOrderId ? 'Edit' : 'Tambah' }} Tire Job Order</h2>
+    <div class="row">
+        <div class="col-md-12 col-sm-12 ">
+            <div class="x_panel">
+                <div class="x_title">
+                    <h2>Tire Job Order List</h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                        <li>
+                            <button wire:click="create" class="btn btn-success btn-sm">Tambah Job Order</button>
+                        </li>
+                        {{-- <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
+                        <li><a class="close-link"><i class="fa fa-close"></i></a></li> --}}
+                    </ul>
+                    <div class="clearfix"></div>
+                </div>
+                <div class="x_content">
+                    @if (session()->has('message'))
+                        <div class="alert alert-success alert-dismissible " role="alert">
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span aria-hidden="true">×</span></button>
+                            {{ session('message') }}
+                        </div>
+                    @endif
 
-                <form wire:submit.prevent="store">
-                    <div class="mb-4">
-                        <label class="block text-sm font-bold mb-2" for="customer_id">
-                            Customer <span class="text-red-500">*</span>
-                        </label>
-                        <select wire:model="customer_id"
-                            class="shadow bg-[#FDFDFC] dark:bg-[#0a0a0a] appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                            id="customer_id">
-                            <option value="">Pilih Customer</option>
-                            @foreach ($customers as $customer)
-                                <option value="{{ $customer->id }}">{{ $customer->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('customer_id')
-                            <span class="text-red-500 text-xs">{{ $message }}</span>
-                        @enderror
+                    <div class="table-responsive">
+                        <table class="table table-striped jambo_table bulk_action">
+                            <thead>
+                                <tr class="headings">
+                                    <th class="column-title">Customer</th>
+                                    <th class="column-title">SN Tire</th>
+                                    <th class="column-title">Tread</th>
+                                    <th class="column-title">Sidewall</th>
+                                    <th class="column-title">Spot</th>
+                                    <th class="column-title">Patch</th>
+                                    <th class="column-title">Area Curing SW</th>
+                                    <th class="column-title">Area Curing Tread</th>
+                                    <th class="column-title">Bead</th>
+                                    <th class="column-title">Chaffer</th>
+                                    <th class="column-title">Tasks</th>
+                                    <th class="column-title no-link last"><span class="nobr">Aksi</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($jobOrders as $jobOrder)
+                                    <tr class="{{ $loop->even ? 'even' : 'odd' }} pointer">
+                                        <td class=" ">{{ $jobOrder->customer->name ?? 'N/A' }}</td>
+                                        <td class=" ">{{ $jobOrder->sn_tire }}</td>
+                                        <td class=" ">{{ $jobOrder->tread }}</td>
+                                        <td class=" ">{{ $jobOrder->sidewall }}</td>
+                                        <td class=" ">{{ $jobOrder->spot }}</td>
+                                        <td class=" ">{{ $jobOrder->patch }}</td>
+                                        <td class=" ">{{ $jobOrder->area_curing_sw }}</td>
+                                        <td class=" ">{{ $jobOrder->area_curing_tread }}</td>
+                                        <td class=" ">{{ $jobOrder->bead }}</td>
+                                        <td class=" ">{{ $jobOrder->chaffer }}</td>
+                                        <td class=" ">
+                                            @php
+                                                $scheduledCount = $jobOrder->tireJobOrderTaskDetails->where('status', 'scheduled')->count();
+                                                $doneCount = $jobOrder->tireJobOrderTaskDetails->where('status', 'done')->count();
+                                                $totalTasks = $jobOrder->tireJobOrderTaskDetails->where('start_time', '!=', null)->count();
+                                            @endphp
+                                            Scheduled: {{ $scheduledCount }} / {{ $totalTasks }}<br>
+                                            Done: {{ $doneCount }} / {{ $totalTasks }}
+                                        </td>
+                                        <td class=" last">
+                                            <button wire:click="edit({{ $jobOrder->id }})" class="btn btn-info btn-xs"><i class="fa fa-pencil"></i> Edit </button>
+                                            <button wire:click="prepareDelete({{ $jobOrder->id }})" class="btn btn-danger btn-xs"><i class="fa fa-trash-o"></i> Delete </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="block text-sm font-bold mb-2" for="sn_tire">
-                            SN Tire <span class="text-red-500">*</span>
-                        </label>
-                        <input wire:model="sn_tire" type="text"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                            id="sn_tire">
-                        @error('sn_tire')
-                            <span class="text-red-500 text-xs">{{ $message }}</span>
-                        @enderror
-                    </div>
-
-                    <!-- Inspection Inputs -->
-                    <div class="grid grid-cols-2 gap-4 mb-6">
-                        <div>
-                            <label class="block text-sm font-bold mb-2" for="tread">
-                                Tread
-                            </label>
-                            <input wire:model.live="tread" type="number" min="0"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                                id="tread">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-bold mb-2" for="sidewall">
-                                Sidewall
-                            </label>
-                            <input wire:model.live="sidewall" type="number" min="0"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                                id="sidewall">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-bold mb-2" for="spot">
-                                Spot
-                            </label>
-                            <input wire:model.live="spot" type="number" min="0"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                                id="spot">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-bold mb-2" for="patch">
-                                Patch
-                            </label>
-                            <input wire:model.live="patch" type="number" min="0"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                                id="patch">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-bold mb-2" for="area_curing_sw">
-                                Area Curing SW
-                            </label>
-                            <input wire:model.live="area_curing_sw" type="number" min="0"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                                id="area_curing_sw">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-bold mb-2" for="area_curing_tread">
-                                Area Curing Tread
-                            </label>
-                            <input wire:model.live="area_curing_tread" type="number" min="0"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                                id="area_curing_tread">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-bold mb-2" for="bead">
-                                Bead
-                            </label>
-                            <input wire:model.live="bead" type="number" min="0"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                                id="bead">
-                        </div>
-
-                        <div>
-                            <label class="block text-sm font-bold mb-2" for="chaffer">
-                                Chaffer
-                            </label>
-                            <input wire:model.live="chaffer" type="number" min="0"
-                                class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                                id="chaffer">
-                        </div>
-                    </div>
-
-                    <div class="flex justify-end space-x-2">
-                        <button type="button" wire:click="closeModal"
-                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
-                            Batal
-                        </button>
-                        <button type="submit"
-                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
-                            Simpan Job Order
-                        </button>
-                    </div>
-                </form>
+                    {{ $jobOrders->links('vendor.pagination.bootstrap-4') }}
+                </div>
             </div>
         </div>
-    @endif
-
-    <!-- Job Orders Table -->
-    <div class="shadow-md rounded my-6">
-        <table class="min-w-full border-collapse">
-            <thead>
-                <tr>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Customer</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">SN Tire</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Tread</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Sidewall</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Spot</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Patch</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Area Curing SW</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Area Curing Tread</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Bead</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Chaffer</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Tasks</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($jobOrders as $jobOrder)
-                    <tr class="border-b">
-                        <td class="py-4 px-6">{{ $jobOrder->customer->name ?? 'N/A' }}</td>
-                        <td class="py-4 px-6">{{ $jobOrder->sn_tire }}</td>
-                        <td class="py-4 px-6">{{ $jobOrder->tread }}</td>
-                        <td class="py-4 px-6">{{ $jobOrder->sidewall }}</td>
-                        <td class="py-4 px-6">{{ $jobOrder->spot }}</td>
-                        <td class="py-4 px-6">{{ $jobOrder->patch }}</td>
-                        <td class="py-4 px-6">{{ $jobOrder->area_curing_sw }}</td>
-                        <td class="py-4 px-6">{{ $jobOrder->area_curing_tread }}</td>
-                        <td class="py-4 px-6">{{ $jobOrder->bead }}</td>
-                        <td class="py-4 px-6">{{ $jobOrder->chaffer }}</td>
-                        <td class="py-4 px-6">
-                            @php
-                                $scheduledCount = $jobOrder->tireJobOrderTaskDetails->where('status', 'scheduled')->count();
-                                $doneCount = $jobOrder->tireJobOrderTaskDetails->where('status', 'done')->count();
-                                $totalTasks = $jobOrder->tireJobOrderTaskDetails->where('start_time', '!=', null)->count();
-                            @endphp
-                            Scheduled: {{ $scheduledCount }} / {{ $totalTasks }}<br>
-                            Done: {{ $doneCount }} / {{ $totalTasks }}
-                        </td>
-                        <td class="py-4 px-6">
-                            <button wire:click="edit({{ $jobOrder->id }})"
-                                class="text-yellow-500 hover:text-yellow-700 mr-2 cursor-pointer transition-colors"><i class="fa fa-edit"></i></button>
-                            <button wire:click="delete({{ $jobOrder->id }})"
-                                onclick="return confirm('Apakah Anda yakin ingin menghapus job order ini?')"
-                                class="text-red-500 hover:text-red-700 cursor-pointer transition-colors"><i class="fa fa-trash"></i></button>
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
     </div>
 
-    {{ $jobOrders->links() }}
+    <!-- Modal Form -->
+    <div class="modal fade" id="tireJobOrderModal" tabindex="-1" role="dialog" aria-hidden="true" wire:ignore.self>
+            <div class="modal-dialog modal-lg" role="document">
+                <div class="modal-content">
+                    <form wire:submit.prevent="store">
+                        <div class="modal-header">
+                            <h4 class="modal-title">{{ $jobOrderId ? 'Edit' : 'Tambah' }} Tire Job Order</h4>
+                        </div>
+                        <div class="modal-body">
+                            <div class="form-group">
+                                <label for="customer_id">Customer <span class="required">*</span></label>
+                                <select wire:model="customer_id" id="customer_id" class="form-control">
+                                    <option value="">Pilih Customer</option>
+                                    @foreach ($customers as $customer)
+                                        <option value="{{ $customer->id }}">{{ $customer->name }}</option>
+                                    @endforeach
+                                </select>
+                                @error('customer_id') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div class="form-group">
+                                <label for="sn_tire">SN Tire <span class="required">*</span></label>
+                                <input wire:model="sn_tire" type="text" id="sn_tire" class="form-control">
+                                @error('sn_tire') <span class="text-danger">{{ $message }}</span> @enderror
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 col-sm-6 form-group">
+                                    <label for="tread">Tread</label>
+                                    <input wire:model.live="tread" type="number" min="0" id="tread" class="form-control">
+                                </div>
+                                <div class="col-md-6 col-sm-6 form-group">
+                                    <label for="sidewall">Sidewall</label>
+                                    <input wire:model.live="sidewall" type="number" min="0" id="sidewall" class="form-control">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 col-sm-6 form-group">
+                                    <label for="spot">Spot</label>
+                                    <input wire:model.live="spot" type="number" min="0" id="spot" class="form-control">
+                                </div>
+                                <div class="col-md-6 col-sm-6 form-group">
+                                    <label for="patch">Patch</label>
+                                    <input wire:model.live="patch" type="number" min="0" id="patch" class="form-control">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 col-sm-6 form-group">
+                                    <label for="area_curing_sw">Area Curing SW</label>
+                                    <input wire:model.live="area_curing_sw" type="number" min="0" id="area_curing_sw" class="form-control">
+                                </div>
+                                <div class="col-md-6 col-sm-6 form-group">
+                                    <label for="area_curing_tread">Area Curing Tread</label>
+                                    <input wire:model.live="area_curing_tread" type="number" min="0" id="area_curing_tread" class="form-control">
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 col-sm-6 form-group">
+                                    <label for="bead">Bead</label>
+                                    <input wire:model.live="bead" type="number" min="0" id="bead" class="form-control">
+                                </div>
+                                <div class="col-md-6 col-sm-6 form-group">
+                                    <label for="chaffer">Chaffer</label>
+                                    <input wire:model.live="chaffer" type="number" min="0" id="chaffer" class="form-control">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
+                            <button type="submit" class="btn btn-primary">Simpan Job Order</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteConfirmationModal" tabindex="-1" role="dialog" aria-hidden="true" wire:ignore.self>
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Konfirmasi Hapus</h4>
+                </div>
+                <div class="modal-body">
+                    <p>Apakah Anda yakin ingin menghapus data ini?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal" wire:click="cancelDelete()">Batal</button>
+                    <button type="button" class="btn btn-danger" wire:click="confirmDelete()">Hapus</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
+
+@push('scripts')
+    <script>
+        const setupTireJobOrderEventListeners = () => {
+            Livewire.on('showTireJobOrderModal', () => {
+                $('#tireJobOrderModal').modal('show');
+            });
+
+            Livewire.on('hideTireJobOrderModal', () => {
+                $('#tireJobOrderModal').modal('hide');
+            });
+
+            Livewire.on('showDeleteConfirmationModal', () => {
+                $('#deleteConfirmationModal').modal('show');
+            });
+
+            Livewire.on('hideDeleteConfirmationModal', () => {
+                $('#deleteConfirmationModal').modal('hide');
+            });
+        };
+
+        const cleanupTireJobOrderEventListeners = () => {
+            Livewire.off('showTireJobOrderModal');
+            Livewire.off('hideTireJobOrderModal');
+            Livewire.off('showDeleteConfirmationModal');
+            Livewire.off('hideDeleteConfirmationModal');
+        };
+
+        document.addEventListener('livewire:navigated', setupTireJobOrderEventListeners);
+        document.addEventListener('livewire:navigating', cleanupTireJobOrderEventListeners);
+
+        // Initial setup
+        setupTireJobOrderEventListeners();
+    </script>
+@endpush

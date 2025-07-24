@@ -1,120 +1,178 @@
-<div class="container mx-auto px-4 py-8">
-    <div class="flex justify-between items-center mb-6">
-        <h1 class="text-2xl font-bold">Manage Tasks</h1>
-        <button wire:click="create" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
-            Tambah Task
-        </button>
+<div>
+    <div class="page-title">
+        <div class="title_left">
+            <h3>Manage Tasks</h3>
+        </div>
     </div>
 
-    @if (session()->has('message'))
-        <div class="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded relative mb-4" role="alert">
-            <span class="block sm:inline">{{ session('message') }}</span>
+    <div class="clearfix"></div>
+
+    <div class="row">
+        <div class="col-md-12 col-sm-12 ">
+            <div class="x_panel">
+                <div class="x_title">
+                    <h2>Task List</h2>
+                    <ul class="nav navbar-right panel_toolbox">
+                        <li>
+                            <button wire:click="create" class="btn btn-success btn-sm">Tambah Task</button>
+                        </li>
+                        {{-- <li><a class="collapse-link"><i class="fa fa-chevron-up"></i></a></li>
+                        <li><a class="close-link"><i class="fa fa-close"></i></a></li> --}}
+                    </ul>
+                    <div class="clearfix"></div>
+                </div>
+                <div class="x_content">
+                    @if (session()->has('message'))
+                        <div class="alert alert-success alert-dismissible " role="alert">
+                            <button type="button" class="close" data-dismiss="alert" aria-label="Close"><span
+                                    aria-hidden="true">×</span></button>
+                            {{ session('message') }}
+                        </div>
+                    @endif
+
+                    <div class="table-responsive">
+                        <table class="table table-striped jambo_table bulk_action">
+                            <thead>
+                                <tr class="headings">
+                                    <th class="column-title">No.</th>
+                                    <th class="column-title">Nama Task</th>
+                                    <th class="column-title">Durasi</th>
+                                    <th class="column-title">Tools</th>
+                                    <th class="column-title no-link last"><span class="nobr">Aksi</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach ($tasks as $index => $task)
+                                    <tr class="{{ $loop->even ? 'even' : 'odd' }} pointer">
+                                        <td class=" ">{{ $tasks->firstItem() + $index }}</td>
+                                        <td class=" ">{{ $task->name }}</td>
+                                        <td class=" ">{{ $task->duration }} menit</td>
+                                        <td class=" ">
+                                            @forelse ($task->tools as $tool)
+                                                <span class="label label-default">{{ $tool->name }}</span>
+                                            @empty
+                                                None
+                                            @endforelse
+                                        </td>
+                                        <td class=" last">
+                                            <button wire:click="edit({{ $task->id }})"
+                                                class="btn btn-info btn-xs"><i class="fa fa-pencil"></i> Edit </button>
+                                            <button wire:click="prepareDelete({{ $task->id }})"
+                                                class="btn btn-danger btn-xs"><i class="fa fa-trash-o"></i> Delete
+                                            </button>
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {{ $tasks->links('vendor.pagination.bootstrap-4') }}
+                </div>
+            </div>
         </div>
-    @endif
+    </div>
 
     <!-- Modal Form -->
-    @if ($isOpen)
-        <div class="fixed inset-0 bg-[#FDFDFC] dark:bg-[#0a0a0a] flex items-center justify-center">
-            <div class=" rounded-lg p-6 w-full max-w-md">
-                <h2 class="text-xl font-semibold mb-4">{{ $taskId ? 'Edit' : 'Tambah' }} Task</h2>
-
+    <div class="modal fade" id="taskModal" tabindex="-1" role="dialog" aria-hidden="true" wire:ignore.self>
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
                 <form wire:submit.prevent="store">
-                    <div class="mb-4">
-                        <label class="block text-sm font-bold mb-2" for="name">
-                            Nama Task <span class="text-red-500">*</span>
-                        </label>
-                        <input wire:model="name" type="text"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                            id="name">
-                        @error('name')
-                            <span class="text-red-500 text-xs">{{ $message }}</span>
-                        @enderror
+                    <div class="modal-header">
+                        <h4 class="modal-title">{{ $taskId ? 'Edit' : 'Tambah' }} Task</h4>
                     </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-bold mb-2" for="duration">
-                            Durasi (menit) <span class="text-red-500">*</span>
-                        </label>
-                        <input wire:model="duration" type="number" min="0"
-                            class="shadow appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                            id="duration">
-                        @error('duration')
-                            <span class="text-red-500 text-xs">{{ $message }}</span>
-                        @enderror
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="name">Nama Task <span class="required">*</span></label>
+                            <input wire:model="name" type="text" id="name" class="form-control">
+                            @error('name')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
+                        </div>
+                        <div class="form-group">
+                            <label for="duration">Durasi (menit) <span class="required">*</span></label>
+                            <input wire:model="duration" type="number" min="0" id="duration"
+                                class="form-control">
+                            @error('duration')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
+                        </div>
+                        <div class="form-group">
+                            <label for="selectedTools">Tools</label>
+                            <select wire:model="selectedTools" multiple id="selectedTools" class="form-control">
+                                @foreach ($tools as $tool)
+                                    <option value="{{ $tool->id }}">{{ $tool->name }}</option>
+                                @endforeach
+                            </select>
+                            @error('selectedTools')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
+                            @error('selectedTools.*')
+                                <span class="text-danger">{{ $message }}</span>
+                            @enderror
+                        </div>
                     </div>
-
-                    <div class="mb-4">
-                        <label class="block text-sm font-bold mb-2" for="selectedTools">
-                            Tools
-                        </label>
-                        <select wire:model="selectedTools" multiple
-                            class="shadow bg-[#FDFDFC] dark:bg-[#0a0a0a] appearance-none border rounded w-full py-2 px-3 leading-tight focus:outline-none focus:shadow-outline"
-                            id="selectedTools">
-                            @foreach ($tools as $tool)
-                                <option value="{{ $tool->id }}">{{ $tool->name }}</option>
-                            @endforeach
-                        </select>
-                        @error('selectedTools')
-                            <span class="text-red-500 text-xs">{{ $message }}</span>
-                        @enderror
-                        @error('selectedTools.*')
-                            <span class="text-red-500 text-xs">{{ $message }}</span>
-                        @enderror
-                    </div>
-
-                    <div class="flex justify-end space-x-2">
-                        <button type="button" wire:click="closeModal"
-                            class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
-                            Batal
-                        </button>
-                        <button type="submit"
-                            class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded cursor-pointer transition-colors">
-                            Simpan
-                        </button>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
+                        <button type="submit" class="btn btn-primary">Simpan</button>
                     </div>
                 </form>
             </div>
         </div>
-    @endif
-
-    <!-- Tabel Tasks -->
-    <div class=" shadow-md rounded my-6">
-        <table class="min-w-full border-collapse">
-            <thead>
-                <tr>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">No.</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Nama Task</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Durasi</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Tools</th>
-                    <th class="py-3 px-6 font-semibold text-sm text-left">Aksi</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach ($tasks as $task)
-                    <tr class="border-b ">
-                        <td class="py-4 px-6">{{ $loop->iteration }}</td>
-                        <td class="py-4 px-6">{{ $task->name }}</td>
-                        <td class="py-4 px-6">{{ $task->duration }} menit</td>
-                        <td class="py-4 px-6">
-                            @forelse ($task->tools as $tool)
-                                <span class="inline-block bg-gray-200 rounded-full px-3 py-1 text-sm font-semibold text-gray-700 mr-2 mb-2">{{ $tool->name }}</span>
-                            @empty
-                                None
-                            @endforelse
-                        </td>
-                        <td class="py-4 px-6">
-                            <button wire:click="edit({{ $task->id }})"
-                                class="text-yellow-500 hover:text-yellow-700 mr-2 cursor-pointer transition-colors"><i class="fa fa-edit"></i></button>
-                            <button wire:click="delete({{ $task->id }})"
-                                onclick="return confirm('Apakah Anda yakin ingin menghapus task ini?')"
-                                class="text-red-500 hover:text-red-700 cursor-pointer transition-colors"><i class="fa fa-trash"></i></button>
-                        </td>
-                    </tr>
-                @endforeach
-            </tbody>
-        </table>
-        <div class="px-6 py-3">
-            {{ $tasks->links() }}
+    </div>
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteConfirmationModal" tabindex="-1" role="dialog" aria-hidden="true"
+        wire:ignore.self>
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h4 class="modal-title">Konfirmasi Hapus</h4>
+                </div>
+                <div class="modal-body">
+                    <p>Apakah Anda yakin ingin menghapus data ini?</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal"
+                        wire:click="cancelDelete()">Batal</button>
+                    <button type="button" class="btn btn-danger" wire:click="confirmDelete()">Hapus</button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
+
+
+@push('scripts')
+    <script>
+        const setupTaskEventListeners = () => {
+            Livewire.on('showTaskModal', () => {
+                $('#taskModal').modal('show');
+            });
+
+            Livewire.on('hideTaskModal', () => {
+                $('#taskModal').modal('hide');
+            });
+
+            Livewire.on('showDeleteConfirmationModal', () => {
+                $('#deleteConfirmationModal').modal('show');
+            });
+
+            Livewire.on('hideDeleteConfirmationModal', () => {
+                $('#deleteConfirmationModal').modal('hide');
+            });
+        };
+
+        const cleanupTaskEventListeners = () => {
+            Livewire.off('showTaskModal');
+            Livewire.off('hideTaskModal');
+            Livewire.off('showDeleteConfirmationModal');
+            Livewire.off('hideDeleteConfirmationModal');
+        };
+
+        document.addEventListener('livewire:navigated', setupTaskEventListeners);
+        document.addEventListener('livewire:navigating', cleanupTaskEventListeners);
+
+        // Initial setup
+        setupTaskEventListeners();
+    </script>
+@endpush

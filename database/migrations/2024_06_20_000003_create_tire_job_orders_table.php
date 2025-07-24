@@ -10,7 +10,7 @@ class CreateTireJobOrdersTable extends Migration
     {
         Schema::create('tire_job_orders', function (Blueprint $table) {
             $table->id();
-            $table->string('sn_tire')->unique();
+            $table->string('sn_tire');
             $table->timestamps();
         });
     }

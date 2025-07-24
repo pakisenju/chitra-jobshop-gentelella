@@ -17,6 +17,7 @@ class ManageTasks extends Component
     public $selectedTools = [];
     public $taskId;
     public $isOpen = false;
+    public $taskToDeleteId = null;
 
     public function render()
     {
@@ -38,11 +39,13 @@ class ManageTasks extends Component
     public function openModal()
     {
         $this->isOpen = true;
+        $this->dispatch('showTaskModal');
     }
 
     public function closeModal()
     {
         $this->isOpen = false;
+        $this->dispatch('hideTaskModal');
     }
 
     public function resetInputFields()
@@ -51,6 +54,7 @@ class ManageTasks extends Component
         $this->duration = '';
         $this->selectedTools = [];
         $this->taskId = '';
+        $this->taskToDeleteId = null;
     }
 
     public function store()
@@ -90,9 +94,25 @@ class ManageTasks extends Component
         $this->openModal();
     }
 
-    public function delete($id)
+    public function prepareDelete($id)
     {
-        Task::find($id)->delete();
-        session()->flash('message', 'Task berhasil dihapus.');
+        $this->taskToDeleteId = $id;
+        $this->dispatch('showDeleteConfirmationModal');
+    }
+
+    public function confirmDelete()
+    {
+        if ($this->taskToDeleteId) {
+            Task::find($this->taskToDeleteId)->delete();
+            session()->flash('message', 'Task berhasil dihapus.');
+            $this->dispatch('hideDeleteConfirmationModal');
+            $this->resetInputFields();
+        }
+    }
+
+    public function cancelDelete()
+    {
+        $this->taskToDeleteId = null;
+        $this->dispatch('hideDeleteConfirmationModal');
     }
 }

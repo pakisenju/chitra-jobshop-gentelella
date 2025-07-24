@@ -14,6 +14,7 @@ class ManageCustomers extends Component
     public $name;
     public $customerId;
     public $isOpen = false;
+    public $customerToDeleteId = null;
 
     public function render()
     {
@@ -30,17 +31,20 @@ class ManageCustomers extends Component
     public function openModal()
     {
         $this->isOpen = true;
+        $this->dispatch('showCustomerModal');
     }
 
     public function closeModal()
     {
         $this->isOpen = false;
+        $this->dispatch('hideCustomerModal');
     }
 
     public function resetInputFields()
     {
         $this->name = '';
         $this->customerId = '';
+        $this->customerToDeleteId = null;
     }
 
     public function store()
@@ -72,9 +76,25 @@ class ManageCustomers extends Component
         $this->openModal();
     }
 
-    public function delete($id)
+    public function prepareDelete($id)
     {
-        Customer::find($id)->delete();
-        session()->flash('message', 'Customer berhasil dihapus.');
+        $this->customerToDeleteId = $id;
+        $this->dispatch('showDeleteConfirmationModal');
+    }
+
+    public function confirmDelete()
+    {
+        if ($this->customerToDeleteId) {
+            Customer::find($this->customerToDeleteId)->delete();
+            session()->flash('message', 'Customer berhasil dihapus.');
+            $this->dispatch('hideDeleteConfirmationModal');
+            $this->resetInputFields();
+        }
+    }
+
+    public function cancelDelete()
+    {
+        $this->customerToDeleteId = null;
+        $this->dispatch('hideDeleteConfirmationModal');
     }
 }

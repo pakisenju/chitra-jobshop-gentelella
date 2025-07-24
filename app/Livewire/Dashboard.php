@@ -27,6 +27,27 @@ class Dashboard extends Component
     public $showScheduleModal = false;
     public $selectedDate;
     public $scheduleData = [];
+    public $tasksToMarkAsDone = [];
+    public $selectAll = []; // Changed to array
+
+    public function updatedSelectAll($value, $shift)
+    {
+        if ($value) {
+            $this->tasksToMarkAsDone = array_merge(
+                $this->tasksToMarkAsDone,
+                collect($this->scheduleData[$shift] ?? [])
+                    ->filter(fn($task) => $task->status === 'scheduled')
+                    ->pluck('id')
+                    ->toArray()
+            );
+        } else {
+            // Remove tasks from this specific shift from the selection
+            $tasksInShift = collect($this->scheduleData[$shift] ?? [])->pluck('id')->toArray();
+            $this->tasksToMarkAsDone = array_diff($this->tasksToMarkAsDone, $tasksInShift);
+        }
+        // Ensure unique values and re-index array
+        $this->tasksToMarkAsDone = array_values(array_unique($this->tasksToMarkAsDone));
+    }
 
 
     protected $listeners = ['showTaskDetail', 'refreshCalendar', 'dateClicked'];
@@ -39,7 +60,7 @@ class Dashboard extends Component
 
     public function runScheduler()
     {
-        $this->showShiftSelectionModal = true;
+        $this->dispatch('showShiftSelection');
     }
 
     public function startScheduling()
@@ -54,6 +75,7 @@ class Dashboard extends Component
 
         session()->flash('message', 'Scheduler command executed for ' . $this->selectedShift . ' shift.');
         $this->dispatch('refreshCalendar');
+        $this->dispatch('hideShiftSelectionModal');
         $this->closeShiftSelectionModal();
     }
 
@@ -67,14 +89,17 @@ class Dashboard extends Component
     {
         $this->selectedDate = $date;
         $this->loadScheduleData();
-        $this->showScheduleModal = true;
+        $this->dispatch('showSchedule');
     }
 
     public function closeScheduleModal()
     {
         $this->showScheduleModal = false;
+        $this->dispatch('hideScheduleModal');
         $this->selectedDate = null;
         $this->scheduleData = [];
+        $this->tasksToMarkAsDone = [];
+        $this->selectAll = []; // Reset as array
     }
 
     public function loadScheduleData()
@@ -82,6 +107,9 @@ class Dashboard extends Component
         if (!$this->selectedDate) {
             return;
         }
+
+        $this->tasksToMarkAsDone = [];
+        $this->selectAll = []; // Reset as array
 
         $date = Carbon::parse($this->selectedDate);
 
@@ -191,7 +219,7 @@ class Dashboard extends Component
         $this->selectedTaskDetail = null;
     }
 
-    public function getEvents()
+    public function getEvents($start, $end)
     {
         $events = [];
 
@@ -199,7 +227,11 @@ class Dashboard extends Component
             ->whereIn('status', ['scheduled', 'done'])
             ->where('total_duration_calculated', '>', 0)
             ->whereNotNull('start_time')
-            ->whereNotNull('end_time');
+            ->whereNotNull('end_time')
+            ->where(function ($q) use ($start, $end) {
+                $q->where('start_time', '<', Carbon::parse($end))
+                  ->where('end_time', '>', Carbon::parse($start));
+            });
 
         if ($this->selectedJobOrderId) {
             $query->where('tire_job_order_id', $this->selectedJobOrderId);
@@ -289,5 +321,15 @@ class Dashboard extends Component
     public function render()
     {
         return view('livewire.dashboard');
+    }
+
+    public function markSelectedTasksAsDone()
+    {
+        TireJobOrderTaskDetail::whereIn('id', $this->tasksToMarkAsDone)->update(['status' => 'done']);
+
+        $this->tasksToMarkAsDone = [];
+        $this->loadScheduleData(); // Refresh the data in the modal
+        $this->dispatch('refreshCalendar'); // Refresh the calendar
+        session()->flash('message', 'Selected tasks have been marked as done.');
     }
 }

@@ -10,18 +10,11 @@ use App\Models\Customer;
 
 class ManageTireJobOrders extends Component
 {
-    public $sn_tire;
-    public $tread = 0;
-    public $sidewall = 0;
-    public $spot = 0;
-    public $patch = 0;
-    public $area_curing_sw = 0;
-    public $area_curing_tread = 0;
-    public $bead = 0;
-    public $chaffer = 0;
-    public $customer_id;
-    public $jobOrderId;
     public $isOpen = false;
+    public $jobOrderId;
+    public $jobOrderToDeleteId = null;
+
+    public $sn_tire, $tread, $sidewall, $spot, $patch, $area_curing_sw, $area_curing_tread, $bead, $chaffer, $customer_id;
 
     protected $rules = [
         'sn_tire' => 'required|string|max:255',
@@ -76,22 +69,39 @@ class ManageTireJobOrders extends Component
         $this->bead = null;
         $this->chaffer = null;
         $this->customer_id = null;
-        $this->jobOrderId = '';
+        $this->jobOrderId = null;
+        $this->jobOrderToDeleteId = null;
     }
 
     public function openModal()
     {
         $this->isOpen = true;
+        $this->dispatch('showTireJobOrderModal');
     }
 
     public function closeModal()
     {
         $this->isOpen = false;
+        $this->dispatch('hideTireJobOrderModal');
     }
 
     public function store()
     {
         $this->validate();
+
+        // Custom validation for sn_tire
+        $existingJobOrder = TireJobOrder::where('sn_tire', $this->sn_tire)->first();
+
+        if ($existingJobOrder && $existingJobOrder->id != $this->jobOrderId) {
+            $allTasksDone = $existingJobOrder->tireJobOrderTaskDetails->every(function ($taskDetail) {
+                return $taskDetail->status === 'done';
+            });
+
+            if (!$allTasksDone) {
+                $this->addError('sn_tire', 'Tire Job Order dengan SN ini masih memiliki task yang aktif.');
+                return;
+            }
+        }
 
         $tireJobOrder = TireJobOrder::updateOrCreate(['id' => $this->jobOrderId], [
             'sn_tire' => $this->sn_tire,
@@ -248,9 +258,25 @@ class ManageTireJobOrders extends Component
         $this->openModal();
     }
 
-    public function delete($id)
+    public function prepareDelete($id)
     {
-        TireJobOrder::find($id)->delete();
-        session()->flash('message', 'Tire Job Order berhasil dihapus.');
+        $this->jobOrderToDeleteId = $id;
+        $this->dispatch('showDeleteConfirmationModal');
+    }
+
+    public function confirmDelete()
+    {
+        if ($this->jobOrderToDeleteId) {
+            TireJobOrder::find($this->jobOrderToDeleteId)->delete();
+            session()->flash('message', 'Tire Job Order berhasil dihapus.');
+            $this->dispatch('hideDeleteConfirmationModal');
+            $this->resetInputFields();
+        }
+    }
+
+    public function cancelDelete()
+    {
+        $this->jobOrderToDeleteId = null;
+        $this->dispatch('hideDeleteConfirmationModal');
     }
 }

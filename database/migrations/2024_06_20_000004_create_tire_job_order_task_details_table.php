@@ -13,7 +13,7 @@ class CreateTireJobOrderTaskDetailsTable extends Migration
             $table->unsignedBigInteger('tire_job_order_id');
             $table->unsignedBigInteger('task_id');
             $table->integer('qty_calculated')->default(0);
-            $table->integer('total_duration_calculated')->default(0);
+            $table->float('total_duration_calculated')->default(0);
             $table->dateTime('actual_start_time')->nullable();
             $table->dateTime('actual_end_time')->nullable();
             $table->unsignedBigInteger('tool_id_used')->nullable();
