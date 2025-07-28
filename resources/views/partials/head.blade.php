@@ -1,7 +1,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
-<title>{{ $title ?? "Chitra Jobshop" }}</title>
+<title>{{ $title ?? "Chitra Paratama" }}</title>
 
 <link rel="icon" href="{{ asset('images/cp_logo2.ico') }}" sizes="any">
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">

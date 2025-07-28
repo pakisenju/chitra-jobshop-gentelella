@@ -48,6 +48,8 @@
                                 </li>
                                 <li class="{{ request()->routeIs('tire-job-orders') ? 'active' : '' }}"><a href="{{ route('tire-job-orders') }}" wire:navigate><i
                                             class="fa fa-briefcase"></i> Tire Job Orders</a></li>
+                                <li class="{{ request()->routeIs('calculation') ? 'active' : '' }}"><a href="{{ route('calculation') }}" wire:navigate><i
+                                            class="fa fa-calculator"></i> Repair Calculator</a></li>
                             </ul>
                             <h3>__________________________</h3>
                         </div>
@@ -93,7 +95,7 @@
             <!-- footer content -->
             <footer>
                 <div class="pull-right">
-                    Gentelella - Bootstrap Admin Template by <a href="https://colorlib.com">Colorlib</a>
+                    Chitra - Jobshop Scheduling System
                 </div>
                 <div class="clearfix"></div>
             </footer>
