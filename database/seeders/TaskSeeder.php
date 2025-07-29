@@ -16,11 +16,13 @@ class TaskSeeder extends Seeder
             'extruder' => Tool::where('name', 'extruder')->first()?->id,
             'monar' => Tool::where('name', 'monar')->first()?->id,
             'lampu' => Tool::where('name', 'lampu')->first()?->id,
+            'washing tool' => Tool::where('name', 'washing tool')->first()?->id,
             'none' => Tool::where('name', 'none')->first()?->id,
         ];
 
         $tasksData = [
             ['Inspeksi Awal', 30, 'none'],
+            ['Washing', 30, 'washing tool'],
             ['Skiving Sidewall', 15, 'airbuffing high'],
             ['Skiving Tread', 90, 'airbuffing high'],
             ['Skiving Spot', 0.34, 'airbuffing high'],

@@ -76,6 +76,15 @@ class ScheduleTasks extends Command
         $scheduledCount = 0;
         $totalTaskCount = $tasksByJobOrder->flatten()->count();
 
+        if ($totalTaskCount === 0) {
+            $this->info('No pending tasks to schedule.');
+            return Command::SUCCESS;
+        }
+
+        $this->info("Starting task scheduling for {$totalTaskCount} tasks...");
+        $progressBar = $this->output->createProgressBar($totalTaskCount);
+        $progressBar->start();
+
         DB::transaction(function () use (
             &$readyQueue,
             &$tasksByJobOrder,
@@ -84,7 +93,8 @@ class ScheduleTasks extends Command
             &$scheduledCount,
             $totalTaskCount,
             $schedulingStartTime,
-            $shift
+            $shift,
+            $progressBar
         ) {
             while ($scheduledCount < $totalTaskCount && $readyQueue->isNotEmpty()) {
                 $bestCandidate = null;
@@ -149,11 +159,10 @@ class ScheduleTasks extends Command
                     'status' => 'scheduled',
                 ]);
 
-                $this->info("Task '{$taskToSchedule->task->name}' (Job: {$taskToSchedule->tire_job_order_id}) scheduled: {$startTime->toDateTimeString()} to {$endTime->toDateTimeString()}");
-
                 // Update variabel tracking
                 $jobOrderLastEndTime[$taskToSchedule->tire_job_order_id] = $endTime;
                 $scheduledCount++;
+                $progressBar->advance();
 
                 // Hapus dari ready queue dan tambahkan task berikutnya dari job yang sama
                 $readyQueue->forget($bestCandidateKey);
@@ -165,6 +174,9 @@ class ScheduleTasks extends Command
                 }
             }
         });
+
+        $progressBar->finish();
+        $this->info('');
 
         $this->info("Task scheduling complete. Scheduled {$scheduledCount} of {$totalTaskCount} tasks.");
         if ($scheduledCount < $totalTaskCount) {

@@ -29,6 +29,7 @@ class Dashboard extends Component
     public $scheduleData = [];
     public $tasksToMarkAsDone = [];
     public $selectAll = []; // Changed to array
+    public $isScheduling = false;
 
     public function updatedSelectAll($value, $shift)
     {
@@ -63,12 +64,16 @@ class Dashboard extends Component
         $this->dispatch('showShiftSelection');
     }
 
-    public function startScheduling()
+    public function prepareAndSchedule()
     {
         $this->validate([
             'selectedShift' => 'required|in:pagi,malam',
         ]);
+        $this->isScheduling = true;
+    }
 
+    public function executeScheduling()
+    {
         \Illuminate\Support\Facades\Artisan::call('schedule:tasks', [
             '--shift' => $this->selectedShift,
         ]);
@@ -77,6 +82,7 @@ class Dashboard extends Component
         $this->dispatch('refreshCalendar');
         $this->dispatch('hideShiftSelectionModal');
         $this->closeShiftSelectionModal();
+        $this->isScheduling = false;
     }
 
     public function closeShiftSelectionModal()
@@ -230,7 +236,7 @@ class Dashboard extends Component
             ->whereNotNull('end_time')
             ->where(function ($q) use ($start, $end) {
                 $q->where('start_time', '<', Carbon::parse($end))
-                  ->where('end_time', '>', Carbon::parse($start));
+                    ->where('end_time', '>', Carbon::parse($start));
             });
 
         if ($this->selectedJobOrderId) {

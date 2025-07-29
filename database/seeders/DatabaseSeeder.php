@@ -22,5 +22,7 @@ class DatabaseSeeder extends Seeder
 
         $this->call(ToolSeeder::class);
         $this->call(TaskSeeder::class);
+        $this->call(CustomerSeeder::class);
+        $this->call(TireJobOrderSeeder::class);
     }
 }

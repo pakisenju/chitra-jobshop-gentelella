@@ -132,6 +132,7 @@ class ManageTireJobOrders extends Component
         // Define the desired order of tasks
         $taskOrder = [
             'inspeksi awal',
+            'washing',
             'skiving sidewall',
             'skiving tread',
             'skiving spot',

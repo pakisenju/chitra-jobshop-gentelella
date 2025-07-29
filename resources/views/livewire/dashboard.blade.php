@@ -1,4 +1,13 @@
 <div>
+    @if ($isScheduling)
+        <div style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 9999; display: flex; justify-content: center; align-items: center;" x-data x-init="$wire.executeScheduling()">
+            <div class="text-center">
+                <i class="fa fa-spinner fa-spin fa-3x fa-fw" style="color: white;"></i>
+                <p style="color: white; margin-top: 10px;">Menjalankan Penjadwalan, mohon tunggu...</p>
+            </div>
+        </div>
+    @endif
+
     <div class="page-title">
         <div class="title_left">
             <h3>Dashboard Penjadwalan</h3>
@@ -124,7 +133,7 @@
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button wire:click="startScheduling" class="btn btn-primary">Mulai Penjadwalan</button>
+                    <button wire:click="prepareAndSchedule" class="btn btn-primary">Mulai Penjadwalan</button>
                     <button type="button" class="btn btn-default" data-dismiss="modal">Batal</button>
                 </div>
             </div>
@@ -378,6 +387,14 @@
                 });
                 window.isCalendarRefreshListenerSet = true;
             }
+
+            Livewire.on('loading-started', () => {
+                document.getElementById('loading-indicator').style.display = 'flex';
+            });
+
+            Livewire.on('loading-finished', () => {
+                document.getElementById('loading-indicator').style.display = 'none';
+            });
 
             window.addEventListener('load', () => {
                 if (window.dashboardCalendar) {

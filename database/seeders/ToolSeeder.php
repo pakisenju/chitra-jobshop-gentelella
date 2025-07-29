@@ -15,7 +15,8 @@ class ToolSeeder extends Seeder
             ['name' => 'Extruder', 'quantity' => 1],
             ['name' => 'Monar', 'quantity' => 1],
             ['name' => 'Lampu', 'quantity' => 1],
-            ['name' => 'None', 'quantity' => 999]
+            ['name' => 'Washing Tool', 'quantity' => 1],
+            ['name' => 'None', 'quantity' => 2]
         ];
 
         foreach ($tools as $tool) {
