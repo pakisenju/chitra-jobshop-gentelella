@@ -20,5 +20,6 @@ Volt::route('tasks', 'manage-tasks')->name('tasks');
 Volt::route('customers', 'manage-customers')->name('customers');
 Volt::route('tire-job-orders', 'manage-tire-job-orders')->name('tire-job-orders');
 Volt::route('dashboard', 'dashboard')->name('dashboard');
+Volt::route('calculation', 'repair-time-calculator')->name('calculation');
 
 require __DIR__ . '/auth.php';

@@ -87,7 +87,7 @@ class TireJobOrderSeeder extends Seeder
             'final inspection(pumping)' => 44,
         ];
 
-        for ($i = 1; $i <= 50; $i++) {
+        for ($i = 1; $i <= 10; $i++) {
             $jobOrder = TireJobOrder::create([
                 'sn_tire' => 'sn' . $i,
                 'tread' => 1,

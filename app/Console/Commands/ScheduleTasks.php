@@ -147,9 +147,11 @@ class ScheduleTasks extends Command
                 $chosenInstances = $bestCandidateResult['chosen_tools'];
                 $endTime = $startTime->copy()->addMinutes($taskToSchedule->total_duration_calculated);
 
-                // PERBAIKAN: Update ketersediaan alat secara eksplisit
-                foreach ($chosenInstances as $toolName => $instanceKey) {
-                    $toolAvailability[$toolName][$instanceKey] = $endTime->copy();
+                // CORRECTLY UPDATE TOOL AVAILABILITY FOR MULTIPLE INSTANCES
+                foreach ($chosenInstances as $toolName => $instanceKeys) {
+                    foreach ($instanceKeys as $instanceKey) {
+                        $toolAvailability[$toolName][$instanceKey] = $endTime->copy();
+                    }
                 }
 
                 // Update database
@@ -228,59 +230,71 @@ class ScheduleTasks extends Command
         string $shift
     ): ?array {
         $currentSearchTime = $earliestConsideredStart->copy();
-        $searchLimit = $currentSearchTime->copy()->addDays(14); // Batas pencarian 2 minggu
+        // INCREASED SEARCH LIMIT
+        $searchLimit = $currentSearchTime->copy()->addDays(60);
 
         while ($currentSearchTime->lessThan($searchLimit)) {
-            // 1. Sesuaikan waktu ke slot kerja valid berikutnya (melompati istirahat & di luar shift)
-            $currentSearchTime = $this->adjustToNextValidWorkTime($currentSearchTime, $taskDuration, $shift);
+            $startTimeCandidate = $this->adjustToNextValidWorkTime($currentSearchTime, $taskDuration, $shift);
 
-            // 2. Cek apakah semua alat yang dibutuhkan tersedia pada $currentSearchTime
             $canSchedule = true;
             $chosenToolInstances = [];
-            $latestToolAvailableTime = $currentSearchTime->copy();
+            $latestToolAvailableTime = $startTimeCandidate->copy();
+            // Create a temporary copy of availability to check without modifying the original
+            $tempToolAvailability = unserialize(serialize($toolAvailability));
 
+            // CORRECTLY COUNT REQUIRED TOOLS
+            $requiredToolCounts = [];
             foreach ($requiredTools as $tool) {
-                if (empty($toolAvailability[$tool->name])) continue;
+                $requiredToolCounts[$tool->name] = ($requiredToolCounts[$tool->name] ?? 0) + 1;
+            }
 
-                $foundInstance = false;
-                $bestInstanceKey = null;
-                $earliestInstanceTime = null;
+            foreach ($requiredToolCounts as $toolName => $requiredCount) {
+                if (empty($tempToolAvailability[$toolName]) || count($tempToolAvailability[$toolName]) < $requiredCount) {
+                    $this->warn("Not enough registered tools for '{$toolName}' to schedule a task. Required: {$requiredCount}, available in system: " . (empty($tempToolAvailability[$toolName]) ? 0 : count($tempToolAvailability[$toolName])));
+                    return null; // Not enough tools exist in the system at all.
+                }
 
-                // Cari instance alat yang tersedia paling awal
-                foreach ($toolAvailability[$tool->name] as $instanceKey => $availableTime) {
-                    if ($earliestInstanceTime === null || $availableTime->lessThan($earliestInstanceTime)) {
-                        $earliestInstanceTime = $availableTime;
-                    }
-                    if ($availableTime->lessThanOrEqualTo($currentSearchTime)) {
-                        $foundInstance = true;
-                        $bestInstanceKey = $instanceKey;
-                        break; // Ditemukan, gunakan instance ini
+                // Sort available instances by time to find the earliest ones
+                asort($tempToolAvailability[$toolName]);
+
+                $foundInstanceKeys = [];
+                foreach ($tempToolAvailability[$toolName] as $instanceKey => $availableTime) {
+                    if ($availableTime->lessThanOrEqualTo($startTimeCandidate)) {
+                        $foundInstanceKeys[] = $instanceKey;
                     }
                 }
 
-                if ($foundInstance) {
-                    $chosenToolInstances[$tool->name] = $bestInstanceKey;
+                if (count($foundInstanceKeys) >= $requiredCount) {
+                    // We found enough free instances. Reserve them.
+                    $chosenToolInstances[$toolName] = array_slice($foundInstanceKeys, 0, $requiredCount);
+                    // Remove from temp availability for subsequent checks in this same time slot
+                    foreach ($chosenToolInstances[$toolName] as $keyToRemove) {
+                        unset($tempToolAvailability[$toolName][$keyToRemove]);
+                    }
                 } else {
+                    // Not enough tools are free. We must wait.
                     $canSchedule = false;
-                    // Simpan waktu tersedia paling akhir dari semua alat yang dibutuhkan
-                    // untuk melompat ke waktu tersebut di iterasi berikutnya.
-                    $latestToolAvailableTime = $latestToolAvailableTime->max($earliestInstanceTime);
+                    // Find when the Nth required tool will become free.
+                    $allInstanceTimes = array_values($toolAvailability[$toolName]);
+                    sort($allInstanceTimes);
+                    $waitUntil = $allInstanceTimes[$requiredCount - 1];
+                    $latestToolAvailableTime = $latestToolAvailableTime->max($waitUntil);
                 }
             }
 
-            // 3. Jika semua alat tersedia, kembalikan hasilnya
             if ($canSchedule) {
                 return [
-                    'start_time' => $currentSearchTime,
+                    'start_time' => $startTimeCandidate,
+                    // This now returns an array of keys for each tool name
                     'chosen_tools' => $chosenToolInstances,
                 ];
             }
 
-            // 4. Jika tidak, lompat ke waktu relevan berikutnya
+            // If not schedulable, jump time to when the bottleneck tool is free
             $currentSearchTime = $latestToolAvailableTime;
         }
 
-        return null; // Tidak ditemukan slot waktu
+        return null; // Return null if no slot is found within the search limit
     }
 
     /**
